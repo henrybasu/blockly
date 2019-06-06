@@ -82,6 +82,14 @@
 <script>
 'use strict';
 var workspace = null;
+Blockly.Workspace.DisplayLevel = function(block=undefined, previous=undefined) {
+  this.block = block;
+  this.previous = previous;
+}
+
+Blockly.Workspace.DisplayLevel.prototype.push = updateDisplayLevel;
+
+Blockly.Workspace.DisplayLevel.prototype.pop = retreatDisplayLevel;
 
 function start() {
   setBackgroundColor();
@@ -142,8 +150,231 @@ function start() {
     logEvents(false);
   }
   taChange();
+
+  Array.prototype.remove = function(b) {
+    var index = this.indexOf(b);
+    if (index > -1) {
+      this.splice(index, 1);
+    }
+  }
+
+  Array.prototype.contains = function(b) { return this.indexOf(b) >= 0 }
+
+  workspace.addChangeListener(generateList);
+  workspace.displayLevel = new Blockly.Workspace.DisplayLevel();
+  document.addEventListener('click', clearHighlighted);
 }
 
+function generateList(e) {
+  if (!workspace.getAllBlocks().length) {
+    return;
+  }
+
+  var currentList = document.getElementById('dump-div');
+  currentList.innerHTML = '';
+
+  // getAllNodes()
+  //   .filter(n => n.type_ === "block")
+  //   .map(n => n.location_)
+  //   .filter(block => block.makeAriaLabel().length)
+  //   .map(makeListElement)
+  //   .forEach(elem => currentList.appendChild(elem));
+
+  /*
+   * Things TODO:
+   * make fields validated and editable
+   * update after editting
+   * fix children so that they appear on proper level
+   */
+
+  var remainingBlocks = workspace.getAllBlocks()
+      .filter(b => b.makeAriaLabel().length);
+
+  function makeListRecur(block) {
+    var elem = makeListElement(block);
+    var mainLevel = workspace.displayLevel.block == block;
+    var lastList = currentList;
+    currentList = document.createElement('ul');
+
+    if (mainLevel) {
+      currentList.appendChild(makeGoBackElement());
+    } else {
+      elem.addEventListener('click', e => workspace.displayLevel.push(block));
+    }
+
+    block.inputList
+        .filter(input => input.type === 1)
+        .filter(input => input.connection)
+        .filter(input => input.connection.targetConnection)
+        .map(input => input.connection.targetConnection.getSourceBlock())
+        .forEach(targetBlock => {
+          currentList.appendChild(makeListRecur(targetBlock));
+          remainingBlocks.remove(targetBlock);
+        });
+
+    if (mainLevel) {
+      block.getChildren().filter(child => remainingBlocks.contains(child))
+          .forEach(child => currentList.appendChild(makeListRecur(child)));
+    }
+
+    elem.appendChild(currentList);
+    currentList = lastList;
+
+    return elem;
+  }
+
+  if (workspace.displayLevel.block) {
+    currentList.appendChild(makeListRecur(workspace.displayLevel.block));
+  } else {
+    for (var block of workspace.getTopBlocks()) {
+      currentList.appendChild(makeListRecur(block));
+      remainingBlocks.remove(block);
+    }
+  }
+}
+
+function makeListElement(block) {
+  var listElem = document.createElement('li');
+  listElem.id = "li" + block.id;
+  listElem.blockId = block.id;
+  listElem.appendChild(document.createTextNode(block.makeAriaLabel()));
+  listElem.addEventListener('click', e => highlightBlock(block));
+  return listElem;
+}
+
+function makeGoBackElement() {
+  var returnNode = document.createElement('li');
+  returnNode.appendChild(document.createTextNode('Go back'));
+  returnNode.addEventListener('click', e => workspace.displayLevel.pop());
+  return returnNode;
+}
+
+function updateDisplayLevel(block) {
+  workspace.displayLevel = new Blockly.Workspace.DisplayLevel(block,
+    workspace.displayLevel);
+  console.log('>' + block.makeAriaLabel());
+  generateList(null);
+}
+
+function retreatDisplayLevel() {
+  workspace.displayLevel = workspace.displayLevel.previous;
+  if (workspace.displayLevel.block) {
+    console.log('<' + workspace.displayLevel.block.makeAriaLabel());
+  } else {
+    console.log('<main')
+  }
+  generateList(null);
+}
+
+function highlightBlock(block) {
+  if (workspace.lastHighlighted) {
+    workspace.lastHighlighted.setHighlighted(false);
+  }
+  if (block) {
+    block.setHighlighted(true);
+  }
+  workspace.lastHighlighted = block;
+}
+
+function clearHighlighted(e) {
+  if (!workspace.lastHighlighted) {
+    return;
+  }
+  var id = 'li' + workspace.lastHighlighted.id;
+  var selector = document.getElementById(id);
+  if (!selector || selector.contains(e.target)) {
+    return;
+  }
+  workspace.lastHighlighted.setHighlighted(false);
+  workspace.lastHighlighted = null;
+}
+
+function getAllNodes() {
+    var ws = Blockly.getMainWorkspace();
+    var curNode = Blockly.ASTNode.createWorkspaceNode(ws, new goog.math.Coordinate(100,100));
+    var nodes = [];
+    do {
+      nodes.push(curNode);
+      curNode = treeTraversal(curNode);
+    } while (curNode);
+    return nodes;
+}
+
+/**
+ * Decides what nodes to traverse and which ones to skip. Currently, it
+ * skips output, stack and workspace nodes.
+ * @param {Blockly.ASTNode} node The ast node to check whether it is valid.
+ * @return {Boolean} True if the node should be visited, false otherwise.
+ * @package
+ */
+function validNode(node) {
+  var isValid = false;
+  if (node && (node.getType() === Blockly.ASTNode.types.BLOCK
+    || node.getType() === Blockly.ASTNode.types.INPUT
+    || node.getType() === Blockly.ASTNode.types.FIELD
+    || node.getType() === Blockly.ASTNode.types.NEXT
+    || node.getType() === Blockly.ASTNode.types.PREVIOUS)) {
+      isValid = true;
+  }
+  return isValid;
+}
+
+/**
+ * From the given node find either the next valid sibling or parent.
+ * @param {Blockly.ASTNode} node The current position in the ast.
+ * @return {Blockly.ASTNode} The parent ast node or null if there are no
+ * valid parents.
+ * @package
+ */
+function findSiblingOrParent(node) {
+  if (!node) {
+    return null;
+  }
+  var nextNode = node.next();
+  if (nextNode) {
+    return nextNode;
+  }
+  return findSiblingOrParent(node.out());
+}
+
+/**
+ * Uses pre order traversal to go navigate the blockly ast. This will allow
+ * a user to easily navigate the entire blockly AST without having to go in
+ * and out levels on the tree.
+ * @param {Blockly.ASTNode} node The current position in the ast.
+ * @return {Blockly.ASTNode} The next node in the traversal.
+ * @package
+ */
+function treeTraversal(node, takeNode=validNode) {
+  if (!node) {
+    return null;
+  }
+  var newNode = node.in() || node.next();
+  if (takeNode(newNode)) {
+    return newNode;
+  } else if (newNode) {
+    return treeTraversal(newNode, takeNode);
+  } else {
+    var siblingOrParent = findSiblingOrParent(node);
+    if (takeNode(siblingOrParent)) {
+      return siblingOrParent;
+    } else if (siblingOrParent
+      && siblingOrParent.getType() !== Blockly.ASTNode.types.WORKSPACE) {
+      return treeTraversal(siblingOrParent, takeNode);
+    }
+  }
+}
+/**
+ * Finds the next node in the tree traversal starting at the location of
+ * the cursor.
+ * @return {Blockly.ASTNode} The next node in the traversal.
+ * @package
+ */
+function findNext() {
+    var cursor = Blockly.Navigation.cursor_;
+    var curNode = cursor.getCurNode();
+    return treeTraversal(curNode);
+}
 function setBackgroundColor() {
   var lilac = '#d6d6ff';
 
@@ -379,6 +610,7 @@ h1 {
     Log events: &nbsp;
     <input type="checkbox" onclick="logEvents(this.checked)" id="logCheck">
   </p>
+  <ul id='dump-div'><ul>
 
   <!-- The next three blocks of XML are sample toolboxes for testing basic
   configurations.  For more information on building toolboxes, see https://developers.google.com/blockly/guides/configure/web/toolbox -->
