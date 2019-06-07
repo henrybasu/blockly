@@ -129,7 +129,7 @@ Blockly.BlockRendering.Debug.prototype.drawRenderedElem = function(elem, cursorX
         'x': cursorX,
         'y': yPos,
         'width': elem.width,
-        'height': elem.height ,
+        'height': elem.height,
       },
       this.svgRoot_));
 
@@ -156,7 +156,7 @@ Blockly.BlockRendering.Debug.prototype.drawConnection = function(conn) {
   } else if (conn.type == Blockly.OUTPUT_VALUE) {
     size = 2;
     colour = 'magenta';
-    fill = colour;
+    fill = 'none';
   } else if (conn.type == Blockly.NEXT_STATEMENT) {
     size = 4;
     colour = 'goldenrod';
@@ -164,7 +164,7 @@ Blockly.BlockRendering.Debug.prototype.drawConnection = function(conn) {
   } else if (conn.type == Blockly.PREVIOUS_STATEMENT) {
     size = 2;
     colour = 'goldenrod';
-    fill = colour;
+    fill = 'none';
   }
   this.debugElements_.push(Blockly.utils.createSvgElement('circle',
       {
@@ -172,8 +172,8 @@ Blockly.BlockRendering.Debug.prototype.drawConnection = function(conn) {
         'cx': conn.offsetInBlock_.x,
         'cy': conn.offsetInBlock_.y,
         'r': size,
-        'fill': fill,
-        'stroke': colour,
+        'fill': 'none',
+        'stroke': 'none',
       },
       this.svgRoot_));
 };
@@ -202,10 +202,9 @@ Blockly.BlockRendering.Debug.prototype.drawRenderedRow = function(row, cursorY, 
  * Draw debug rectangles for a non-empty row and all of its subcomponents.
  * @param {!Blockly.BlockSvg.Row} row The non-empty row to render.
  * @param {number} cursorY The y position of the top of the row.
- * @param {?string} type The type of the block.
  * @package
  */
-Blockly.BlockRendering.Debug.prototype.drawRowWithElements = function(row, cursorY, type) {
+Blockly.BlockRendering.Debug.prototype.drawRowWithElements = function(row, cursorY) {
   var centerY = cursorY + row.height / 2;
   var cursorX = 0;
   for (var e = 0; e < row.elements.length; e++) {
@@ -217,7 +216,29 @@ Blockly.BlockRendering.Debug.prototype.drawRowWithElements = function(row, curso
     }
     cursorX += elem.width;
   }
-  this.drawRenderedRow(row, cursorY, type);
+  var desc = "";
+  for(var i = 0; i < row.elements.length; i++){
+    switch (row.elements[i].type) {
+      case 'field':
+        if(row.elements[i].field.textElement_ != null)
+        desc += row.elements[i].field.textElement_.textContent + " ";
+        break;
+      case 'icon':
+        desc += 'icon ';
+        break;
+      case 'external value input':
+        desc += row.elements[i].connectedBlock == null? 'external value input':row.elements[i].connectedBlock.type;
+        break;
+      case 'inline input':
+        desc += row.elements[i].connectedBlock == null? 'inline input':row.elements[i].connectedBlock.type;
+        break;
+      case 'statement input':
+        desc += 'statement ';
+        break;
+      default:
+    }
+  }
+  this.drawRenderedRow(row, cursorY, desc);
 };
 
 /**
@@ -240,7 +261,7 @@ Blockly.BlockRendering.Debug.prototype.drawDebug = function(block, info) {
         this.drawSpacerRow(row, cursorY);
       }
     } else {
-      this.drawRowWithElements(row, cursorY, block.type);
+      this.drawRowWithElements(row, cursorY);
     }
     cursorY += row.height;
   }
@@ -255,3 +276,12 @@ Blockly.BlockRendering.Debug.prototype.drawDebug = function(block, info) {
     this.drawConnection(block.outputConnection);
   }
 };
+
+/**
+ * Construct the descriotion of a row.
+ * @param {!Blockly.BlockRendering.Row}
+ */
+
+Blockly.BlockRendering.Debug.prototype.grabDesc = function(row){
+
+}

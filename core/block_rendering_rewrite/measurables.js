@@ -126,7 +126,7 @@ Blockly.BlockRendering.Measurable.prototype.isSquareCorner = function() {
   return this.type == 'square corner';
 };
 /**
- * The base class to represent an input that takes up space on a block
+ * The base class to represent an   that takes up space on a block
  * during rendering
  * @param {!Blockly.Input} input The input to measure and store information for.
  * @package
