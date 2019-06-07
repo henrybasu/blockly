@@ -82,14 +82,46 @@
 <script>
 'use strict';
 var workspace = null;
-Blockly.Workspace.DisplayLevel = function(block=undefined, previous=undefined) {
-  this.block = block;
-  this.previous = previous;
+Blockly.ASTNode.prototype.getFirstNestedBlock = function() {
+  var currentInput = this.in();
+  var node;
+  while (currentInput) {
+    node = currentInput.in();
+
+    if (node && node.getType() === 'previous') {
+      return node.next();
+    }
+
+    currentInput = currentInput.next();
+  }
+  return null;
 }
 
-Blockly.Workspace.DisplayLevel.prototype.push = updateDisplayLevel;
+Blockly.ASTNode.prototype.getFirstSiblingBlock = function() {
+  var node = this.next();
+  while (node && node.getType() !== 'block') {
+    node = node.next();
+  }
+  return node;
+}
 
-Blockly.Workspace.DisplayLevel.prototype.pop = retreatDisplayLevel;
+Blockly.ASTNode.prototype.getParentStack = function() {
+  var node = this;
+  var parentStack = [];
+  while (node = node.out()) {
+    parentStack.push(node);
+  }
+  return parentStack;
+}
+
+Array.prototype.remove = function(b) {
+  var index = this.indexOf(b);
+  if (index > -1) {
+    this.splice(index, 1);
+  }
+}
+
+Array.prototype.contains = function(b) { return this.indexOf(b) >= 0; }
 
 function start() {
   setBackgroundColor();
@@ -151,142 +183,166 @@ function start() {
   }
   taChange();
 
-  Array.prototype.remove = function(b) {
-    var index = this.indexOf(b);
-    if (index > -1) {
-      this.splice(index, 1);
-    }
-  }
-
-  Array.prototype.contains = function(b) { return this.indexOf(b) >= 0 }
-
   workspace.addChangeListener(generateList);
-  workspace.displayLevel = new Blockly.Workspace.DisplayLevel();
-  document.addEventListener('click', clearHighlighted);
 }
 
-function generateList(e) {
+function generateList(e=undefined) {
   if (!workspace.getAllBlocks().length) {
     return;
   }
 
-  var currentList = document.getElementById('dump-div');
-  currentList.innerHTML = '';
+  generateParentNav(workspace.selectedNode);
 
-  // getAllNodes()
-  //   .filter(n => n.type_ === "block")
-  //   .map(n => n.location_)
-  //   .filter(block => block.makeAriaLabel().length)
-  //   .map(makeListElement)
-  //   .forEach(elem => currentList.appendChild(elem));
-
-  /*
-   * Things TODO:
-   * make fields validated and editable
-   * update after editting
-   * fix children so that they appear on proper level
-   */
-
-  var remainingBlocks = workspace.getAllBlocks()
-      .filter(b => b.makeAriaLabel().length);
-
-  function makeListRecur(block) {
-    var elem = makeListElement(block);
-    var mainLevel = workspace.displayLevel.block == block;
-    var lastList = currentList;
-    currentList = document.createElement('ul');
-
-    if (mainLevel) {
-      currentList.appendChild(makeGoBackElement());
-    } else {
-      elem.addEventListener('click', e => workspace.displayLevel.push(block));
-    }
-
-    block.inputList
-        .filter(input => input.type === 1)
-        .filter(input => input.connection)
-        .filter(input => input.connection.targetConnection)
-        .map(input => input.connection.targetConnection.getSourceBlock())
-        .forEach(targetBlock => {
-          currentList.appendChild(makeListRecur(targetBlock));
-          remainingBlocks.remove(targetBlock);
-        });
-
-    if (mainLevel) {
-      block.getChildren().filter(child => remainingBlocks.contains(child))
-          .forEach(child => currentList.appendChild(makeListRecur(child)));
-    }
-
-    elem.appendChild(currentList);
-    currentList = lastList;
-
-    return elem;
-  }
-
-  if (workspace.displayLevel.block) {
-    currentList.appendChild(makeListRecur(workspace.displayLevel.block));
+  var dumpDiv = document.getElementById('dump-div');
+  dumpDiv.innerHTML = '';
+  if (workspace.selectedNode) {
+    dumpDiv.appendChild(makeNodeList(workspace.selectedNode));
   } else {
-    for (var block of workspace.getTopBlocks()) {
-      currentList.appendChild(makeListRecur(block));
-      remainingBlocks.remove(block);
-    }
+    makeWorkspaceList(workspace, dumpDiv);
   }
 }
 
-function makeListElement(block) {
+function makeWorkspaceList(workspace, list=undefined) {
+  var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
+  var stackItemList = list || document.createElement('ul');
+
+  var currentStack = wsNode.in();
+  while (currentStack) {
+    var currentNode = currentStack.in().next();
+
+    while (currentNode) {
+      stackItemList.appendChild(makeNodeList(currentNode, false));
+      currentNode = currentNode.getFirstSiblingBlock();
+    }
+
+    currentStack = currentStack.next();
+  }
+
+  // var mainElem = makeWorkspaceListElement();
+  // mainElem.appendChild(stackItemList);
+  // return mainElem;
+  return stackItemList;
+}
+
+function makeNodeList(rootNode, mainLevel=true) {
+  var mainElem = makeListElement(rootNode.getLocation(),
+      mainLevel? undefined: rootNode);
+  var sublist = document.createElement('ul');
+
+  if (mainLevel) {
+    sublist.appendChild(makeGoBackElement(rootNode));
+    // load inputs
+    var item = document.createElement('li');
+    item.appendChild(document.createTextNode('inputs...'));
+    sublist.appendChild(item);
+  }
+
+  var node = rootNode.getFirstNestedBlock();
+
+  if (!node || !mainLevel) {
+    mainElem.appendChild(sublist);
+    return mainElem;
+  }
+
+  while (node) {
+    var block = node.getLocation();
+
+    var elem = makeNodeList(node, false);
+
+    sublist.appendChild(elem);
+    node = node.getFirstSiblingBlock();
+  }
+
+  mainElem.appendChild(sublist);
+  return mainElem;
+}
+
+function generateParentNav(rootNode) {
+  var pNav = document.getElementById('parent-nav');
+  pNav.innerHTML = '';
+  pNav.appendChild(makeParentItem(null));
+
+  if (!rootNode) {
+    return;
+  }
+
+  var pStack = rootNode.getParentStack()
+      .filter(node => node.getType() === 'block');
+  pStack.reverse().map(makeParentItem).forEach(item => pNav.appendChild(item));
+}
+
+function makeParentItem(node) {
+  var item = document.createElement('b');
+  var label = node? node.getLocation().makeAriaLabel() + ' > ': 'workspace > ';
+  item.appendChild(document.createTextNode(label));
+  item.setAttribute('aria-label',
+      'Jump to ' + label.slice(0, label.length - 3));
+  item.addEventListener('click', e => {
+    highlightBlock(node? node.getLocation(): null);
+    workspace.selectedNode = node;
+    generateList();
+  });
+  return item;
+}
+
+function makeListElement(block, node) {
   var listElem = document.createElement('li');
   listElem.id = "li" + block.id;
   listElem.blockId = block.id;
   listElem.appendChild(document.createTextNode(block.makeAriaLabel()));
-  listElem.addEventListener('click', e => highlightBlock(block));
+  if (node) {
+    listElem.addEventListener('click', e => {
+        highlightBlock(block);
+        workspace.selectedNode = node;
+        generateList();
+    });
+  }
   return listElem;
 }
 
-function makeGoBackElement() {
+function makeGoBackElement(node=undefined) {
   var returnNode = document.createElement('li');
   returnNode.appendChild(document.createTextNode('Go back'));
-  returnNode.addEventListener('click', e => workspace.displayLevel.pop());
+  if (node) {
+    returnNode.addEventListener('click', e => {
+      var outNode = node.out();
+      while (outNode && outNode.type_ !== 'block') {
+        outNode = outNode.out();
+      }
+      if (outNode) {
+        highlightBlock(outNode.getLocation());
+      } else if (workspace.lastHighlighted) {
+          workspace.lastHighlighted.setHighlighted(false);
+      }
+
+      workspace.selectedNode = outNode;
+      generateList();
+    });
+  } else {
+    returnNode.addEventListener('click', e => workspace.displayLevel.pop());
+  }
   return returnNode;
 }
 
-function updateDisplayLevel(block) {
-  workspace.displayLevel = new Blockly.Workspace.DisplayLevel(block,
-    workspace.displayLevel);
-  console.log('>' + block.makeAriaLabel());
-  generateList(null);
-}
-
-function retreatDisplayLevel() {
-  workspace.displayLevel = workspace.displayLevel.previous;
-  if (workspace.displayLevel.block) {
-    console.log('<' + workspace.displayLevel.block.makeAriaLabel());
-  } else {
-    console.log('<main')
-  }
-  generateList(null);
+function makeWorkspaceListElement() {
+  var mainElem = document.createElement('li');
+  mainElem.appendChild(document.createTextNode('workspace'));
+  mainElem.addEventListener('click', e => workspace.zoomToFit());
+  return mainElem;
 }
 
 function highlightBlock(block) {
-  if (workspace.lastHighlighted) {
-    workspace.lastHighlighted.setHighlighted(false);
-  }
+  clearHighlighted();
   if (block) {
     block.setHighlighted(true);
   }
   workspace.lastHighlighted = block;
 }
 
-function clearHighlighted(e) {
-  if (!workspace.lastHighlighted) {
-    return;
+function clearHighlighted(e=undefined) {
+  if (workspace.lastHighlighted) {
+    workspace.lastHighlighted.setHighlighted(false);
   }
-  var id = 'li' + workspace.lastHighlighted.id;
-  var selector = document.getElementById(id);
-  if (!selector || selector.contains(e.target)) {
-    return;
-  }
-  workspace.lastHighlighted.setHighlighted(false);
-  workspace.lastHighlighted = null;
 }
 
 function getAllNodes() {
@@ -610,6 +666,7 @@ h1 {
     Log events: &nbsp;
     <input type="checkbox" onclick="logEvents(this.checked)" id="logCheck">
   </p>
+  <p id='parent-nav'></p>
   <ul id='dump-div'><ul>
 
   <!-- The next three blocks of XML are sample toolboxes for testing basic
