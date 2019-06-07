@@ -221,19 +221,19 @@ Blockly.BlockRendering.Debug.prototype.drawRowWithElements = function(row, curso
     switch (row.elements[i].type) {
       case 'field':
         if(row.elements[i].field.textElement_ != null)
-        desc += row.elements[i].field.textElement_.textContent + " ";
+        desc += row.elements[i].field.textElement_.textContent + '. ';
         break;
       case 'icon':
-        desc += 'icon ';
+        desc += 'modifier icon. ';
         break;
       case 'external value input':
-        desc += row.elements[i].connectedBlock == null? 'external value input':row.elements[i].connectedBlock.type;
+        desc += row.elements[i].connectedBlock == null? 'external value input. ':row.elements[i].connectedBlock.type + '. ';
         break;
       case 'inline input':
-        desc += row.elements[i].connectedBlock == null? 'inline input':row.elements[i].connectedBlock.type;
+        desc += row.elements[i].connectedBlock == null? 'inline input. ':row.elements[i].connectedBlock.type + '. ';
         break;
       case 'statement input':
-        desc += 'statement ';
+        desc += 'statement. ';
         break;
       default:
     }
