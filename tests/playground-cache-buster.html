@@ -74,7 +74,7 @@
     // client to re-request JS files instead of caching them
     let cacheBuster = "?" + new Date().getTime();
 
-    for(let script of scripts) {
+    for (let script of scripts) {
         document.write("<script src='" + script + cacheBuster + "'></script>")
     }
     -->
@@ -82,47 +82,6 @@
 <script>
 'use strict';
 var workspace = null;
-Blockly.ASTNode.prototype.getFirstNestedBlock = function() {
-  var currentInput = this.in();
-  var node;
-  while (currentInput) {
-    node = currentInput.in();
-
-    if (node && node.getType() === 'previous') {
-      return node.next();
-    }
-
-    currentInput = currentInput.next();
-  }
-  return null;
-}
-
-Blockly.ASTNode.prototype.getFirstSiblingBlock = function() {
-  var node = this.next();
-  while (node && node.getType() !== 'block') {
-    node = node.next();
-  }
-  return node;
-}
-
-Blockly.ASTNode.prototype.getParentStack = function() {
-  var node = this;
-  var parentStack = [];
-  while (node = node.out()) {
-    parentStack.push(node);
-  }
-  return parentStack;
-}
-
-Array.prototype.remove = function(b) {
-  var index = this.indexOf(b);
-  if (index > -1) {
-    this.splice(index, 1);
-  }
-}
-
-Array.prototype.contains = function(b) { return this.indexOf(b) >= 0; }
-
 function start() {
   setBackgroundColor();
 
@@ -194,107 +153,102 @@ function generateList(e=undefined) {
   generateParentNav(workspace.selectedNode);
 
   var dumpDiv = document.getElementById('dump-div');
-  dumpDiv.innerHTML = '';
-  if (workspace.selectedNode) {
-    dumpDiv.appendChild(makeNodeList(workspace.selectedNode));
-  } else {
-    makeWorkspaceList(workspace, dumpDiv);
-  }
+  var newDiv = workspace.selectedNode?
+      makeNodeList(workspace.selectedNode):
+      makeWorkspaceList(workspace);
+
+  newDiv.setAttribute("id", 'dump-div');
+  document.body.replaceChild(newDiv, dumpDiv);
+  dumpDiv = newDiv;
 }
 
-function makeWorkspaceList(workspace, list=undefined) {
+function makeWorkspaceList(workspace) {
   var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
-  var stackItemList = list || document.createElement('ul');
+  var stackItemList = document.createElement('ul');
 
-  var currentStack = wsNode.in();
-  while (currentStack) {
-    var currentNode = currentStack.in().next();
+  var firstStack = wsNode.in();
+  firstStack.sequence(n => n.next()).forEach(stack => {
+    var firstNode = stack.in().next();
+    firstNode.sequence(n => n.getFirstSiblingBlock()).forEach(
+      node => stackItemList.appendChild(makeListElement(node)));
+  });
 
-    while (currentNode) {
-      stackItemList.appendChild(makeNodeList(currentNode, false));
-      currentNode = currentNode.getFirstSiblingBlock();
-    }
-
-    currentStack = currentStack.next();
-  }
-
-  // var mainElem = makeWorkspaceListElement();
-  // mainElem.appendChild(stackItemList);
-  // return mainElem;
   return stackItemList;
 }
 
-function makeNodeList(rootNode, mainLevel=true) {
-  var mainElem = makeListElement(rootNode.getLocation(),
-      mainLevel? undefined: rootNode);
+function makeNodeList(rootNode) {
   var sublist = document.createElement('ul');
+  sublist.appendChild(makeGoBackElement(rootNode));
 
-  if (mainLevel) {
-    sublist.appendChild(makeGoBackElement(rootNode));
-    // load inputs
-    var item = document.createElement('li');
-    item.appendChild(document.createTextNode('inputs...'));
+  var item = document.createElement('li');
+  item.appendChild(document.createTextNode('Insert above'));
+  sublist.appendChild(item);
+
+  // TODO: load inputs here
+  var inline = rootNode.getFirstInlineBlock();
+  if (inline) {
+    item = document.createElement('li');
+    item.appendChild(document.createTextNode('Inputs'));
     sublist.appendChild(item);
   }
 
-  var node = rootNode.getFirstNestedBlock();
-
-  if (!node || !mainLevel) {
-    mainElem.appendChild(sublist);
-    return mainElem;
+  var firstNested = rootNode.getFirstNestedBlock();
+  if (firstNested) {
+    firstNested.sequence(n => n.getFirstSiblingBlock()).forEach(node =>
+      sublist.appendChild(makeListElement(node))
+    );
   }
 
-  while (node) {
-    var block = node.getLocation();
+  item = document.createElement('li');
+  item.appendChild(document.createTextNode('Insert below'));
+  sublist.appendChild(item);
 
-    var elem = makeNodeList(node, false);
-
-    sublist.appendChild(elem);
-    node = node.getFirstSiblingBlock();
-  }
-
-  mainElem.appendChild(sublist);
-  return mainElem;
+  return sublist;
 }
 
 function generateParentNav(rootNode) {
   var pNav = document.getElementById('parent-nav');
   pNav.innerHTML = '';
-  pNav.appendChild(makeParentItem(null));
+  pNav.appendChild(makeParentItem());
 
   if (!rootNode) {
     return;
   }
 
-  var pStack = rootNode.getParentStack()
-      .filter(node => node.getType() === 'block');
-  pStack.reverse().map(makeParentItem).forEach(item => pNav.appendChild(item));
+  rootNode.getParentStack(true)
+      .filter(node => node.getType() === 'block')
+      .reverse()
+      .map(makeParentItem)
+      .forEach(item => pNav.appendChild(item));
 }
 
-function makeParentItem(node) {
+function makeParentItem(node=undefined) {
   var item = document.createElement('b');
   var label = node? node.getLocation().makeAriaLabel() + ' > ': 'workspace > ';
   item.appendChild(document.createTextNode(label));
   item.setAttribute('aria-label',
       'Jump to ' + label.slice(0, label.length - 3));
   item.addEventListener('click', e => {
-    highlightBlock(node? node.getLocation(): null);
+    highlightBlock(node && node.getLocation());
     workspace.selectedNode = node;
     generateList();
   });
   return item;
 }
 
-function makeListElement(block, node) {
+function makeListElement(node) {
   var listElem = document.createElement('li');
+  var block = node.getLocation();
   listElem.id = "li" + block.id;
   listElem.blockId = block.id;
   listElem.appendChild(document.createTextNode(block.makeAriaLabel()));
   if (node) {
     listElem.addEventListener('click', e => {
+      if (workspace.selectedBlock != block) {
         highlightBlock(block);
         workspace.selectedNode = node;
         generateList();
+      }
     });
   }
   return listElem;
@@ -322,13 +276,6 @@ function makeGoBackElement(node=undefined) {
     returnNode.addEventListener('click', e => workspace.displayLevel.pop());
   }
   return returnNode;
-}
-
-function makeWorkspaceListElement() {
-  var mainElem = document.createElement('li');
-  mainElem.appendChild(document.createTextNode('workspace'));
-  mainElem.addEventListener('click', e => workspace.zoomToFit());
-  return mainElem;
 }
 
 function highlightBlock(block) {
