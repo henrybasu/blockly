@@ -150,27 +150,51 @@ function generateList(e=undefined) {
     return;
   }
 
+  if (e) {
+    alterSelectedWithEvent(e);
+  }
+
   generateParentNav(workspace.selectedNode);
 
-  var dumpDiv = document.getElementById('dump-div');
+  var navListDiv = document.getElementById('mainNavList');
   var newDiv = workspace.selectedNode?
       makeNodeList(workspace.selectedNode):
       makeWorkspaceList(workspace);
 
-  newDiv.setAttribute("id", 'dump-div');
-  document.body.replaceChild(newDiv, dumpDiv);
-  dumpDiv = newDiv;
+  newDiv.setAttribute('id', 'mainNavList');
+  document.body.replaceChild(newDiv, navListDiv);
+}
+
+function alterSelectedWithEvent(e) {
+  var block;
+  switch (e.type) {
+    case Blockly.Events.BLOCK_MOVE:
+      block = workspace.getBlockById(e.blockId);
+      break;
+    case Blockly.Events.FINISHED_LOADING:
+      block = null;
+      break;
+    case Blockly.Events.UI:
+      block = workspace.selectedNode && workspace.selectedNode.getLocation();
+      break;
+  }
+
+  workspace.selectedNode = block && Blockly.ASTNode.createBlockNode(block);
 }
 
 function makeWorkspaceList(workspace) {
   var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
   var stackItemList = document.createElement('ul');
 
+  // for each stack
   var firstStack = wsNode.in();
   firstStack.sequence(n => n.next()).forEach(stack => {
+    // for each block node in the top of the stack
     var firstNode = stack.in().next();
-    firstNode.sequence(n => n.getFirstSiblingBlock()).forEach(
-      node => stackItemList.appendChild(makeListElement(node)));
+    // add a new list element representing the block to the list
+    firstNode.sequence(n => n.getFirstSiblingBlock())
+      .map(makeListElement)
+      .forEach(node => stackItemList.appendChild(node));
   });
 
   return stackItemList;
@@ -194,9 +218,9 @@ function makeNodeList(rootNode) {
 
   var firstNested = rootNode.getFirstNestedBlock();
   if (firstNested) {
-    firstNested.sequence(n => n.getFirstSiblingBlock()).forEach(node =>
-      sublist.appendChild(makeListElement(node))
-    );
+    firstNested.sequence(n => n.getFirstSiblingBlock())
+        .map(makeListElement)
+        .forEach(elem => sublist.appendChild(elem));
   }
 
   item = document.createElement('li');
@@ -216,23 +240,18 @@ function generateParentNav(rootNode) {
   }
 
   rootNode.getParentStack(true)
-      .filter(node => node.getType() === 'block')
+      .filter(node => node.getType() === Blockly.ASTNode.types.BLOCK)
       .reverse()
       .map(makeParentItem)
-      .forEach(item => pNav.appendChild(item));
+      .forEach(elem => pNav.appendChild(elem));
 }
 
 function makeParentItem(node=undefined) {
   var item = document.createElement('b');
-  var label = node? node.getLocation().makeAriaLabel() + ' > ': 'workspace > ';
-  item.appendChild(document.createTextNode(label));
-  item.setAttribute('aria-label',
-      'Jump to ' + label.slice(0, label.length - 3));
-  item.addEventListener('click', e => {
-    highlightBlock(node && node.getLocation());
-    workspace.selectedNode = node;
-    generateList();
-  });
+  var labelText = node? node.getLocation().makeAriaLabel(): 'workspace';
+  item.appendChild(document.createTextNode(labelText + ' > '));
+  item.setAttribute('aria-label', 'Jump to ' + labelText);
+  item.addEventListener('click', e => listItemOnclick(node));
   return item;
 }
 
@@ -242,15 +261,7 @@ function makeListElement(node) {
   listElem.id = "li" + block.id;
   listElem.blockId = block.id;
   listElem.appendChild(document.createTextNode(block.makeAriaLabel()));
-  if (node) {
-    listElem.addEventListener('click', e => {
-      if (workspace.selectedBlock != block) {
-        highlightBlock(block);
-        workspace.selectedNode = node;
-        generateList();
-      }
-    });
-  }
+  listElem.addEventListener('click', e => listItemOnclick(node));
   return listElem;
 }
 
@@ -260,22 +271,21 @@ function makeGoBackElement(node=undefined) {
   if (node) {
     returnNode.addEventListener('click', e => {
       var outNode = node.out();
-      while (outNode && outNode.type_ !== 'block') {
+      while (outNode && outNode.getType() !== 'block') {
         outNode = outNode.out();
       }
-      if (outNode) {
-        highlightBlock(outNode.getLocation());
-      } else if (workspace.lastHighlighted) {
-          workspace.lastHighlighted.setHighlighted(false);
-      }
-
-      workspace.selectedNode = outNode;
-      generateList();
+      listItemOnclick(outNode);
     });
   } else {
     returnNode.addEventListener('click', e => workspace.displayLevel.pop());
   }
   return returnNode;
+}
+
+function listItemOnclick(node) {
+  highlightBlock(node && node.getLocation());
+  workspace.selectedNode = node;
+  generateList();
 }
 
 function highlightBlock(block) {
@@ -551,10 +561,13 @@ h1 {
   font-family: monospace;
 }
 
+#mainNavList {
+list-style-type: none;
+}
+
 .ioLabel>.blocklyFlyoutLabelText {
   font-style: italic;
 }
-
 </style>
 </head>
 <body onload="start()">
@@ -614,7 +627,7 @@ h1 {
     <input type="checkbox" onclick="logEvents(this.checked)" id="logCheck">
   </p>
   <p id='parent-nav'></p>
-  <ul id='dump-div'><ul>
+  <ul id='mainNavList'><ul>
 
   <!-- The next three blocks of XML are sample toolboxes for testing basic
   configurations.  For more information on building toolboxes, see https://developers.google.com/blockly/guides/configure/web/toolbox -->
