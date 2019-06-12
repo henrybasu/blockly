@@ -145,6 +145,12 @@ function start() {
   workspace.addChangeListener(generateList);
 }
 
+/**
+ * The ChangeListener for workspace events. On fire, fully redraws
+ * linearization, including parentNav.
+ * @param {?Blockly.Events.Abstract=} e undefined by default, the workspace
+ * event that triggers this ChangeListener.
+ */
 function generateList(e=undefined) {
   if (!workspace.getAllBlocks().length) {
     return;
@@ -154,7 +160,7 @@ function generateList(e=undefined) {
     alterSelectedWithEvent(e);
   }
 
-  generateParentNav(workspace.selectedNode);
+  generateParentNav(workspace, workspace.selectedNode);
 
   var navListDiv = document.getElementById('mainNavList');
   var newDiv = workspace.selectedNode?
@@ -165,6 +171,12 @@ function generateList(e=undefined) {
   navListDiv.parentNode.replaceChild(newDiv, navListDiv);
 }
 
+/**
+ * Takes a workspace event and uses the type of event to determine the next
+ * selectedNode.
+ * @param {Blockly.Events.Abstract} e the workspace event that determines the
+ * next selectedNode.
+ */
 function alterSelectedWithEvent(e) {
   var node;
   switch (e.type) {
@@ -183,7 +195,14 @@ function alterSelectedWithEvent(e) {
   listItemOnclick(node);
 }
 
-function generateParentNav(rootNode) {
+/**
+ * Generates (and replaces) the old parent-nav bar, using color-coded, linked
+ * breadcrumbs. Always includes workspace.
+ * @param {!Blockly.Workspace} Current workspace
+ * @param {?Blockly.ASTNode} rooNode Generates breadcrumbs from rootNode's
+ * parentStack up to and including rootNode.
+ */
+function generateParentNav(workspace, rootNode) {
   var pNav = document.getElementById('parent-nav');
   pNav.innerHTML = '';
   pNav.appendChild(makeParentItem());
@@ -199,6 +218,13 @@ function generateParentNav(rootNode) {
       .forEach(elem => pNav.appendChild(elem));
 }
 
+/**
+ * Creates and returns the HTML unordered list of labelled stacks with sublists
+ * of every block on the same visual indent, represented with list elements
+ * @param {!Blockly.Workspace} Current workspace
+ * @return {HTMLElement} an html representation of the top level of the current
+ * workspace, in the form of an unordered list.
+ */
 function makeWorkspaceList(workspace) {
   var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
   var wsList = document.createElement('ul');
@@ -213,7 +239,10 @@ function makeWorkspaceList(workspace) {
     var stackItemList = document.createElement('ul');
 
     // for each block node in the top of the stack
-    var firstNode = stack.in().next();
+    var firstNode = stack.in();
+    if (firstNode.getType() !== Blockly.ASTNode.types.BLOCK) {
+      firstNode = firstNode.getFirstSiblingBlock();
+    }
     // add a new list element representing the block to the list
     firstNode.sequence(n => n.getFirstSiblingBlock())
       .map(makeListElement)
@@ -226,6 +255,13 @@ function makeWorkspaceList(workspace) {
   return wsList;
 }
 
+/**
+ * Creates and returns the HTML unordered list of every block on the same visual
+ * indent within the rootNode, represented with list elements
+ * @param {!Blockly.ASTNode} rootNode the direct parent of all items in the list
+ * @return {HTMLElement} an html representation of the top level of the
+ * rootNode, in the form of an unordered list.
+ */
 function makeNodeList(rootNode) {
   var sublist = document.createElement('ul');
   sublist.appendChild(makeGoBackElement(rootNode));
@@ -253,15 +289,31 @@ function makeNodeList(rootNode) {
   return sublist;
 }
 
+/**
+ * Creates and returns the color-coded, linked HTML bold text of a parent block
+ * used in parent-nav.
+ * @param {?Blockly.ASTNode=} node undefined by default, a parent node. If null,
+ * creates the workspace ParentItem.
+ * @return {HTMLElement} an html representation of node as a parent
+ */
 function makeParentItem(node=undefined) {
   var item = document.createElement('b');
   var labelText = getNodeLabel(node);
   item.appendChild(document.createTextNode(labelText + ' > '));
+  if (node) {
+    item.setAttribute('style',
+          'color:hsl(' + node.getLocation().getHue() + ', 40%, 40%)');
+  }
   item.setAttribute('aria-label', 'Jump to ' + labelText);
   item.addEventListener('click', e => listItemOnclick(node));
   return item;
 }
 
+/**
+ * Creates and returns the appropriately edittable HTML ListElement of node.
+ * @param {!Blockly.ASTNode} node the input/field to represent
+ * @return {HTMLElement} an edittable html representation of node
+ */
 function makeInputListElement(node) {
   var block = node.getLocation();
   switch (node.getType()) {
@@ -280,13 +332,14 @@ function makeInputListElement(node) {
         entry = [0, block.getOptions()[0]];
       }
       var elem = makeListTextElement('Field: ' + entry[1][0]);
-      elem.setAttribute('aria-desc', 'Click to change');
+      elem.setAttribute('aria-label', 'Field: ' + entry[1][0] + ', click to change');
       elem.setAttribute('index', entry[0]);
       elem.addEventListener('click', e => {
         var newIndex = (parseInt(elem.getAttribute('index')) + 1)
             % block.getOptions().length;
         var option = block.getOptions()[newIndex];
         var textNode = document.createTextNode('Field: ' + option[0]);
+        elem.setAttribute('aria-label', 'Field: ' + option[0] + ', click to change');
         elem.replaceChild(textNode, elem.firstChild);
         elem.setAttribute('index', newIndex);
         Blockly.Events.disable();
@@ -319,6 +372,14 @@ function makeInputListElement(node) {
   }
 }
 
+/**
+ * Creates and returns the standard ListElement for the block in node, labelled
+ * with text equivalent to node.getLocation().makeAriaLabel().
+ * Attributes include a unique id and blockId for the associated block, as well
+ * adding the standard listItemOnclick(node) event listener on click.
+ * @param {!Blockly.ASTNode} node the block to represent
+ * @return {HTMLElement} an linked html list item representation of node
+ */
 function makeListElement(node) {
   var listElem = document.createElement('li');
   var block = node.getLocation();
@@ -329,17 +390,34 @@ function makeListElement(node) {
   return listElem;
 }
 
+/**
+ * Creates and returns an HTML li element with a text node reading text.
+ * @param {!String} text the text on the list item
+ * @return {HTMLElement} an html list item with text node text
+ */
 function makeListTextElement(text) {
   var listElem = document.createElement('li');
   listElem.appendChild(document.createTextNode(text));
   return listElem;
 }
 
+/**
+ * Creates and returns a textfield HTML li element linked to node's value.
+ * @param {!Blockly.ASTNode} node the node containing the item to represent
+ * @return {HTMLElement} an html list item that is edittable for number
+ * and text fields.
+ */
 function makeEdittableFieldElement(node) {
-  return makeListTextElement('todo');
-  // TODO: return a list item that is edittable for number and text fields.
+  return makeListTextElement('todo'); // TODO: fix me
 }
 
+/**
+ * Creates and returns a linked HTML li element linked to node's direct visual
+ * parent.
+ * @param {!Blockly.ASTNode} node the child node of the parent to go back to
+ * @return {HTMLElement} an html list item that will navigate to the direct
+ * visual parent block
+ */
 function makeGoBackElement(node) {
   var returnNode = document.createElement('li');
   var outNode = node.out();
@@ -352,18 +430,33 @@ function makeGoBackElement(node) {
   return returnNode;
 }
 
+/**
+ * The standard onclick action for ListElements. Highlights the node's block if
+ * node is not null, sets the selectedNode to node, and calls generateList().
+ * @param {?Blockly.ASTNode} node the node to navigate to and highlight
+ */
 function listItemOnclick(node) {
   highlightBlock(node && node.getLocation());
   workspace.selectedNode = node;
   generateList();
 }
 
+/**
+ * Creates and returns the aria label for node if
+ * node.getLocation().makeAriaLabel is not null, 'workspace' if otherwise.
+ * @param {?Blockly.ASTNode} node the node to get aria-label from
+ * @return {String} the string generated by node.getLocation().makeAriaLabel()
+ */
 function getNodeLabel(node) {
   return node && node.getLocation().makeAriaLabel?
       node.getLocation().makeAriaLabel():
       'workspace';
 }
 
+/**
+ * Highlights block if block is not null. Sets lastHighlighted to block.
+ * @param {?Blockly.ASTNode} block block to highlight, null if none
+ */
 function highlightBlock(block) {
   clearHighlighted();
   if (block) {
@@ -372,6 +465,21 @@ function highlightBlock(block) {
   workspace.lastHighlighted = block;
 }
 
+/**
+ * Unhighlights lastHighlighted, if lastHighlighted is not null.
+ */
+function clearHighlighted() {
+  if (workspace.lastHighlighted) {
+    workspace.lastHighlighted.setHighlighted(false);
+  }
+}
+
+/**
+ * Creates and returns the next label in lexicographic order, adding a letter in
+ * the event of overflow.
+ * @param {!String} marker the last node created
+ * @return {String} the next label after marker in lexicographic order
+ */
 function nextStackMarker(marker) {
   var lastIndex = marker.length - 1;
   var prefix = marker.slice(0, lastIndex);
@@ -381,14 +489,13 @@ function nextStackMarker(marker) {
   return prefix + String.fromCharCode(marker.charCodeAt(lastIndex) + 1);
 }
 
-function clearHighlighted(e=undefined) {
-  if (workspace.lastHighlighted) {
-    workspace.lastHighlighted.setHighlighted(false);
-  }
-}
-
-function nextInlineInput(n) {
-  var next = n.next();
+/**
+ * Seeks the next inline input on node's AST parent after node itself.
+ * @param {!Blockly.ASTNode} node the last sibiling searched
+ * @return {Blockly.ASTNode} the first inline sibling after node, null if none.
+ */
+function nextInlineInput(node) {
+  var next = node.next();
   if (next && next.in() &&
       next.in().getType() != Blockly.ASTNode.types.PREVIOUS) {
     return next;
@@ -396,6 +503,10 @@ function nextInlineInput(n) {
   return null;
 }
 
+/**
+ * Returns all blocks in the main workspace encapsulated in nodes.
+ * @return {Array.<Blockly.ASTNode>} all possible nodes from the main workspace
+ */
 function getAllNodes() {
     var ws = Blockly.getMainWorkspace();
     var curNode = Blockly.ASTNode.createWorkspaceNode(ws, new goog.math.Coordinate(100,100));
