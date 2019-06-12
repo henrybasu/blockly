@@ -162,72 +162,25 @@ function generateList(e=undefined) {
       makeWorkspaceList(workspace);
 
   newDiv.setAttribute('id', 'mainNavList');
-  document.body.replaceChild(newDiv, navListDiv);
+  navListDiv.parentNode.replaceChild(newDiv, navListDiv);
 }
 
 function alterSelectedWithEvent(e) {
-  var block;
+  var node;
   switch (e.type) {
     case Blockly.Events.BLOCK_MOVE:
-      block = workspace.getBlockById(e.blockId);
+      var block = workspace.getBlockById(e.blockId);
+      node = block && Blockly.ASTNode.createBlockNode(block);
       break;
     case Blockly.Events.FINISHED_LOADING:
-      block = null;
+      node = null;
       break;
     case Blockly.Events.UI:
-      block = workspace.selectedNode && workspace.selectedNode.getLocation();
+      node = workspace.selectedNode;
       break;
   }
 
-  workspace.selectedNode = block && Blockly.ASTNode.createBlockNode(block);
-}
-
-function makeWorkspaceList(workspace) {
-  var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
-  var stackItemList = document.createElement('ul');
-
-  // for each stack
-  var firstStack = wsNode.in();
-  firstStack.sequence(n => n.next()).forEach(stack => {
-    // for each block node in the top of the stack
-    var firstNode = stack.in().next();
-    // add a new list element representing the block to the list
-    firstNode.sequence(n => n.getFirstSiblingBlock())
-      .map(makeListElement)
-      .forEach(node => stackItemList.appendChild(node));
-  });
-
-  return stackItemList;
-}
-
-function makeNodeList(rootNode) {
-  var sublist = document.createElement('ul');
-  sublist.appendChild(makeGoBackElement(rootNode));
-
-  var item = document.createElement('li');
-  item.appendChild(document.createTextNode('Insert above'));
-  sublist.appendChild(item);
-
-  // TODO: load inputs here
-  var inline = rootNode.getFirstInlineBlock();
-  if (inline) {
-    item = document.createElement('li');
-    item.appendChild(document.createTextNode('Inputs'));
-    sublist.appendChild(item);
-  }
-
-  var firstNested = rootNode.getFirstNestedBlock();
-  if (firstNested) {
-    firstNested.sequence(n => n.getFirstSiblingBlock())
-        .map(makeListElement)
-        .forEach(elem => sublist.appendChild(elem));
-  }
-
-  item = document.createElement('li');
-  item.appendChild(document.createTextNode('Insert below'));
-  sublist.appendChild(item);
-
-  return sublist;
+  listItemOnclick(node);
 }
 
 function generateParentNav(rootNode) {
@@ -246,13 +199,124 @@ function generateParentNav(rootNode) {
       .forEach(elem => pNav.appendChild(elem));
 }
 
+function makeWorkspaceList(workspace) {
+  var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
+  var wsList = document.createElement('ul');
+
+  // for each stack
+  var firstStack = wsNode.in();
+  var marker = 'A';
+  firstStack.sequence(n => n.next()).forEach(stack => {
+    var stackItem = document.createElement('li');
+    stackItem.appendChild(document.createTextNode('Stack ' + marker));
+    marker = nextStackMarker(marker);
+    var stackItemList = document.createElement('ul');
+
+    // for each block node in the top of the stack
+    var firstNode = stack.in().next();
+    // add a new list element representing the block to the list
+    firstNode.sequence(n => n.getFirstSiblingBlock())
+      .map(makeListElement)
+      .forEach(node => stackItemList.appendChild(node));
+
+    stackItem.appendChild(stackItemList);
+    wsList.appendChild(stackItem);
+  });
+
+  return wsList;
+}
+
+function makeNodeList(rootNode) {
+  var sublist = document.createElement('ul');
+  sublist.appendChild(makeGoBackElement(rootNode));
+
+  sublist.appendChild(makeListTextElement('Insert above'));
+
+  // TODO: load inputs here
+  var inline = rootNode.getFirstInlineBlock();
+  if (inline) {
+    inline.sequence(nextInlineInput)
+      .map(makeInputListElement)
+      .filter(n => n)
+      .forEach(elem => sublist.appendChild(elem));
+  }
+
+  var firstNested = rootNode.getFirstNestedBlock();
+  if (firstNested) {
+    firstNested.sequence(n => n.getFirstSiblingBlock())
+        .map(makeListElement)
+        .forEach(elem => sublist.appendChild(elem));
+  }
+
+  sublist.appendChild(makeListTextElement('Insert below'));
+
+  return sublist;
+}
+
 function makeParentItem(node=undefined) {
   var item = document.createElement('b');
-  var labelText = node? node.getLocation().makeAriaLabel(): 'workspace';
+  var labelText = getNodeLabel(node);
   item.appendChild(document.createTextNode(labelText + ' > '));
   item.setAttribute('aria-label', 'Jump to ' + labelText);
   item.addEventListener('click', e => listItemOnclick(node));
   return item;
+}
+
+function makeInputListElement(node) {
+  var block = node.getLocation();
+  switch (node.getType()) {
+    case Blockly.ASTNode.types.FIELD:
+      var options = block.getOptions();
+      if (!options.length) {
+        return null;
+      }
+      var entry;
+      for (var i = 0, option; option = options[i]; i++) {
+        if (option[1] === block.getValue()) {
+          entry = [i, option];
+        }
+      }
+      if (!entry) {
+        entry = [0, block.getOptions()[0]];
+      }
+      var elem = makeListTextElement('Field: ' + entry[1][0]);
+      elem.setAttribute('aria-desc', 'Click to change');
+      elem.setAttribute('index', entry[0]);
+      elem.addEventListener('click', e => {
+        var newIndex = (parseInt(elem.getAttribute('index')) + 1)
+            % block.getOptions().length;
+        var option = block.getOptions()[newIndex];
+        var textNode = document.createTextNode('Field: ' + option[0]);
+        elem.replaceChild(textNode, elem.firstChild);
+        elem.setAttribute('index', newIndex);
+        Blockly.Events.disable();
+        // TODO: fix me, so very sad
+        try {
+          block.setValue(option[1]);
+          generateParentNav(workspace.selectedNode);
+        } catch (e) {
+
+        } finally {
+          Blockly.Events.enable();
+        }
+      });
+      return elem;
+    case Blockly.ASTNode.types.INPUT:
+      var inNode = node.in();
+      if (!inNode) {
+        return makeListTextElement('Add input');
+      }
+      var block = inNode.next();
+      if (!block) {
+        return makeListTextElement('Add input');
+      }
+
+      return makeEdittableFieldElement(node);
+    default:
+      console.log('uncaught');
+      console.log(node);
+      return null;
+  }
 }
 
 function makeListElement(node) {
@@ -265,20 +329,26 @@ function makeListElement(node) {
   return listElem;
 }
 
-function makeGoBackElement(node=undefined) {
+function makeListTextElement(text) {
+  var listElem = document.createElement('li');
+  listElem.appendChild(document.createTextNode(text));
+  return listElem;
+}
+
+function makeEdittableFieldElement(node) {
+  return makeListTextElement('todo');
+  // TODO: return a list item that is edittable for number and text fields.
+}
+
+function makeGoBackElement(node) {
   var returnNode = document.createElement('li');
-  returnNode.appendChild(document.createTextNode('Go back'));
-  if (node) {
-    returnNode.addEventListener('click', e => {
-      var outNode = node.out();
-      while (outNode && outNode.getType() !== 'block') {
-        outNode = outNode.out();
-      }
-      listItemOnclick(outNode);
-    });
-  } else {
-    returnNode.addEventListener('click', e => workspace.displayLevel.pop());
+  var outNode = node.out();
+  while (outNode && outNode.getType() !== 'block') {
+    outNode = outNode.out();
   }
+  var labelText = 'Go back to ' + getNodeLabel(outNode);
+  returnNode.appendChild(document.createTextNode(labelText));
+  returnNode.addEventListener('click', e => listItemOnclick(outNode));
   return returnNode;
 }
 
@@ -286,6 +356,12 @@ function listItemOnclick(node) {
   highlightBlock(node && node.getLocation());
   workspace.selectedNode = node;
   generateList();
+}
+
+function getNodeLabel(node) {
+  return node && node.getLocation().makeAriaLabel?
+      node.getLocation().makeAriaLabel():
+      'workspace';
 }
 
 function highlightBlock(block) {
@@ -296,10 +372,28 @@ function highlightBlock(block) {
   workspace.lastHighlighted = block;
 }
 
+function nextStackMarker(marker) {
+  var lastIndex = marker.length - 1;
+  var prefix = marker.slice(0, lastIndex);
+  if (marker.charCodeAt(lastIndex) === 'Z'.charCodeAt(0)) {
+    return (prefix? nextStackMarker(prefix): 'A') + 'A';
+  }
+  return prefix + String.fromCharCode(marker.charCodeAt(lastIndex) + 1);
+}
+
 function clearHighlighted(e=undefined) {
   if (workspace.lastHighlighted) {
     workspace.lastHighlighted.setHighlighted(false);
   }
+}
+
+function nextInlineInput(n) {
+  var next = n.next();
+  if (next && next.in() &&
+      next.in().getType() != Blockly.ASTNode.types.PREVIOUS) {
+    return next;
+  }
+  return null;
 }
 
 function getAllNodes() {
@@ -562,7 +656,11 @@ h1 {
 }
 
 #mainNavList {
-list-style-type: none;
+  list-style-type: none;
+  padding-inline-start: 8px;
+  overflow: auto;
+  max-height: 300px;
+  min-height: 300px;
 }
 
 .ioLabel>.blocklyFlyoutLabelText {
