@@ -143,6 +143,75 @@ function start() {
   taChange();
 
   workspace.addChangeListener(generateList);
+  workspace.requestManager = new RequestManager();
+}
+
+/**
+ * Class to manage requests for blocks from connections
+ */
+class RequestManager {
+  constructor() {
+    this.blockNode;
+    this.connectionNode;
+  }
+
+  push(item) {
+    if (item.getLocation() instanceof Blockly.Block) {
+      console.log('block');
+      this.blockNode = item;
+    } else if (item.getLocation() instanceof Blockly.Connection) {
+      console.log('conn');
+      this.connectionNode = item;
+    } else {
+      var msg = 'fell through';
+      msg.item = item;
+      console.log(msg);
+      return;
+    }
+
+    this.service();
+  }
+
+  service() {
+    if (!(this.blockNode && this.connectionNode)) {
+      return;
+    }
+
+    var insertPointNode = this.connectionNode;
+    var advance, back;
+    switch (insertPointNode.getType()) {
+      case Blockly.ASTNode.types.NEXT:
+      case Blockly.ASTNode.types.INPUT:
+        advance = n => n.next();
+        back = n => n.prev();
+        break;
+      case Blockly.ASTNode.types.PREVIOUS:
+        advance = n => n.prev();
+        back = n => n.next();
+        break;
+      default:
+        console.log({warn:'fell through', insertPointNode});
+        return;
+    }
+
+    var providedNode = this.blockNode;
+    var previousConnection = advance(insertPointNode);
+    if (previousConnection &&
+        previousConnection.getType() === Blockly.ASTNode.types.FIELD) {
+      previousConnection = null;
+    }
+
+    insertPointNode.getLocation().connect(back(providedNode).getLocation());
+    if (previousConnection && previousConnection.getLocation) {
+      var sutureNode = advance(providedNode);
+      if (sutureNode && sutureNode.getLocation) {
+        previousConnection.getLocation().connect(sutureNode.getLocation())
+      }
+    }
+
+    this.connectionNode = null;
+    this.blockNode = null;
+  }
 }
 
 /**
@@ -205,6 +274,18 @@ function alterSelectedWithEvent(e) {
 function generateParentNav(workspace, rootNode) {
   var pNav = document.getElementById('parent-nav');
   pNav.innerHTML = '';
+
+  if (workspace.requestManager.connectionNode) {
+    var cancelItem = document.createElement('b');
+    cancelItem.appendChild(document.createTextNode('Cancel Move'));
+    cancelItem.addEventListener('click', e => {
+        workspace.requestManager.connectionNode = null;
+        generateList();
+    });
+    pNav.appendChild(cancelItem);
+    pNav.appendChild(document.createElement('br'))
+  }
+
   pNav.appendChild(makeParentItem());
 
   if (!rootNode) {
@@ -265,16 +346,52 @@ function makeWorkspaceList(workspace) {
 function makeNodeList(rootNode) {
   var sublist = document.createElement('ul');
   sublist.appendChild(makeGoBackElement(rootNode));
+  var block = rootNode.getLocation();
+  var connNode = workspace.requestManager.connectionNode;
 
-  sublist.appendChild(makeListTextElement('Insert above'));
+  var prevConn = rootNode.prev();
+  if (prevConn) {
+    var inlineOutputConn = connNode && connNode.getParentInput() &&
+        connNode.getParentInput().type === 1;
+    sublist.appendChild(makeConnListItem(rootNode, prevConn,
+        inlineOutputConn? 'Tack me on side of': 'Insert me below',
+        'Insert above me'));
+  }
 
   // TODO: load inputs here
   var inline = rootNode.getFirstInlineBlock();
   if (inline) {
-    inline.sequence(nextInlineInput)
-      .map(makeInputListElement)
+    var inlineSeq = inline.sequence(nextInlineInput);
+    inlineSeq.map(makeInputListElement)
       .filter(n => n)
       .forEach(elem => sublist.appendChild(elem));
+  }
+
+  var inNode = rootNode.in();
+  while (inNode && inNode.getType() !== Blockly.ASTNode.types.INPUT) {
+    inNode = inNode.next();
+  }
+
+  if (!connNode && inNode) {
+    var inNodeSeq = inNode.sequence(n => n.next()).filter(n => n);
+    var counter = { // used mainly for if/elseif/else statements
+      tackVal: 1,
+      insertVal: 1,
+      tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
+      insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
+    }
+    inNodeSeq.map(n => makeBasicConnListItem(
+          n,
+          n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
+              'Tack on side' + counter.tackText():
+              'Insert within' + counter.insertText())
+        ).forEach(n => sublist.appendChild(n));
+  }
+
+  // TODO: load mutator items here
+  var mutator = block.mutator;
+  if (mutator) {
+    sublist.append(...makeAllMutatorElements(rootNode))
   }
 
   var firstNested = rootNode.getFirstNestedBlock();
@@ -284,9 +401,151 @@ function makeNodeList(rootNode) {
         .forEach(elem => sublist.appendChild(elem));
   }
 
-  sublist.appendChild(makeListTextElement('Insert below'));
+  var nextConn = rootNode.next();
+  if (nextConn) {
+    var inlineOutputConn = connNode && connNode.getParentInput() &&
+        connNode.getParentInput().type === 1;
+    sublist.appendChild(makeConnListItem(rootNode, nextConn,
+      inlineOutputConn? 'Tack me on side of': 'Insert me above',
+      'Insert below me'));
+  }
 
   return sublist;
+}
+
+function makeAllMutatorElements(rootNode) {
+  var block = rootNode.getLocation();
+  var list = [];
+  var elem;
+  if (block.elseifCount_ != undefined) {
+    elem = makeListTextElement('Add elseif');
+    elem.addEventListener('click', e => {
+      block.elseifCount_++;
+      block.rebuildShape_();
+      listItemOnclick(rootNode);
+    })
+    list.push(elem);
+
+    if (block.elseifCount_ > 0) {
+      elem = makeListTextElement('Remove elseif');
+      elem.addEventListener('click', e => {
+        block.elseifCount_--;
+        block.rebuildShape_();
+        listItemOnclick(rootNode);
+      })
+      list.push(elem);
+    }
+  }
+
+  if (block.elseCount_ === 0) {
+    elem = makeListTextElement('Add else');
+    elem.addEventListener('click', e => {
+      block.elseCount_++;
+      block.rebuildShape_();
+      listItemOnclick(rootNode);
+    })
+    list.push(elem);
+  } else if (block.elseCount_ === 1) {
+    elem = makeListTextElement('Remove else');
+    elem.addEventListener('click', e => {
+      block.elseCount_--;
+      block.rebuildShape_();
+      listItemOnclick(rootNode);
+    })
+    list.push(elem);
+  }
+
+  if (block.itemCount_ != undefined) {
+    elem = makeListTextElement('Add item');
+    elem.addEventListener('click', e => {
+      block.itemCount_++;
+      block.updateShape_();
+      listItemOnclick(rootNode);
+    })
+    list.push(elem);
+
+    if (block.itemCount_ > 1) {
+      elem = makeListTextElement('Remove item');
+      elem.addEventListener('click', e => {
+        block.itemCount_--;
+        block.updateShape_();
+        listItemOnclick(rootNode);
+      })
+      list.push(elem);
+    }
+  }
+
+  if (block.arguments_ != undefined) {
+    elem = makeListTextElement('Add argument');
+    elem.addEventListener('click', e => {
+      var argname;
+      if (block.arguments_.length) {
+        var lastArg = block.arguments_[block.arguments_.length - 1];
+        argname = (lastArg.length > 5)? lastArg:
+          nextStackMarker(lastArg);
+      } else {
+        argname = 'A';
+      }
+
+      while (block.arguments_.includes(argname)) {
+        argname += 'I'
+      }
+
+      block.arguments_.push(argname);
+      block.updateParams_();
+      listItemOnclick(rootNode);
+    })
+    list.push(elem);
+    
+    block.arguments_.forEach(arg => {
+      elem = makeListTextElement('Remove argument \"' + arg + '\"');
+      elem.addEventListener('click', e => {
+        block.arguments_.splice(block.arguments_.indexOf(arg), 1);
+        block.updateParams_();
+        listItemOnclick(rootNode);
+      })
+      // TODO: add rename argument option, maybe rename to empty string = delete
+      list.push(elem);
+    })
+  }
+
+  return list;
+}
+
+function makeConnListItem(rootNode, candidate, text, alttext) {
+  var connNode = workspace.requestManager.connectionNode;
+  if (!connNode) {
+      return makeBasicConnListItem(candidate, alttext);
+  }
+
+  var conn = connNode.getLocation();
+  var check = conn.canConnectWithReason_(candidate.getLocation());
+  if (check === Blockly.Connection.CAN_CONNECT) {
+    var label = text + ' ' + conn.getSourceBlock().makeAriaLabel();
+    return makeBasicConnListItem(rootNode, label);
+  } else if (check === Blockly.Connection.REASON_SELF_CONNECTION) {
+    var item = makeListTextElement('Cancel insert');
+    item.addEventListener('click', e => {
+      workspace.requestManager.connectionNode = null;
+      generateList();
+    });
+    return item;
+  }
+
+  return makeBasicConnListItem(candidate, alttext);
+}
+
+function makeBasicConnListItem(node, text) {
+  var item = makeListTextElement(text);
+  var connection = node.getLocation();
+  item.id = "li" + connection.id;
+  item.blockId = connection.id;
+  item.addEventListener('click', e => {
+    workspace.requestManager.push(node);
+    workspace.selectedNode = null;
+    generateList();
+  });
+  return item;
 }
 
 /**
@@ -409,6 +668,8 @@ function makeListElement(node) {
   console.log(block.inputList);
   listElem.appendChild(document.createTextNode(block.makeAriaLabel()));
   listElem.addEventListener('click', e => listItemOnclick(node));
+  listElem.setAttribute('style',
+          'color:hsl(' + node.getLocation().getHue() + ', 40%, 40%)');
   return listElem;
 }
 
