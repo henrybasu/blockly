@@ -150,6 +150,10 @@ function start() {
  * Class to manage requests for blocks from connections, and vice-versa
  */
 class RequestManager {
+  /**
+   * Names two fields, returns a connection request manager.
+   * @constructor
+   */
   constructor() {
     this.blockNode;
     this.connectionNode;
@@ -413,70 +417,50 @@ function makeNodeList(rootNode) {
 }
 
 function makeAllMutatorElements(rootNode) {
-  var block = rootNode.getLocation();
   var list = [];
-  var elem;
+
   if (block.elseifCount_ != undefined) {
-    elem = makeListTextElement('Add elseif');
-    elem.addEventListener('click', e => {
+    list.push(makeMutatorListElement(rootNode, 'Add elseif', block => {
       block.elseifCount_++;
       block.rebuildShape_();
-      listItemOnclick(rootNode);
-    })
-    list.push(elem);
+    }));
 
     if (block.elseifCount_ > 0) {
-      elem = makeListTextElement('Remove elseif');
-      elem.addEventListener('click', e => {
+      list.push(makeMutatorListElement(rootNode, 'Remove elseif', block => {
         block.elseifCount_--;
         block.rebuildShape_();
-        listItemOnclick(rootNode);
-      })
-      list.push(elem);
+      }));
     }
   }
 
   if (block.elseCount_ === 0) {
-    elem = makeListTextElement('Add else');
-    elem.addEventListener('click', e => {
+    list.push(makeMutatorListElement(rootNode, 'Add else', block => {
       block.elseCount_++;
       block.rebuildShape_();
-      listItemOnclick(rootNode);
-    })
-    list.push(elem);
+    }));
   } else if (block.elseCount_ === 1) {
-    elem = makeListTextElement('Remove else');
-    elem.addEventListener('click', e => {
+    list.push(makeMutatorListElement(rootNode, 'Remove else', block => {
       block.elseCount_--;
       block.rebuildShape_();
-      listItemOnclick(rootNode);
-    })
-    list.push(elem);
+    }));
   }
 
   if (block.itemCount_ != undefined) {
-    elem = makeListTextElement('Add item');
-    elem.addEventListener('click', e => {
+    list.push(makeMutatorListElement(rootNode, 'Add item', block => {
       block.itemCount_++;
       block.updateShape_();
-      listItemOnclick(rootNode);
-    })
-    list.push(elem);
+    }));
 
     if (block.itemCount_ > 1) {
-      elem = makeListTextElement('Remove item');
-      elem.addEventListener('click', e => {
+      list.push(makeMutatorListElement(rootNode, 'Remove item', block => {
         block.itemCount_--;
         block.updateShape_();
-        listItemOnclick(rootNode);
-      })
-      list.push(elem);
+      }));
     }
   }
 
   if (block.arguments_ != undefined) {
-    elem = makeListTextElement('Add argument');
-    elem.addEventListener('click', e => {
+    list.push(makeMutatorListElement(rootNode, 'Add argument', block => {
       var argname;
       if (block.arguments_.length) {
         var lastArg = block.arguments_[block.arguments_.length - 1];
@@ -493,8 +477,7 @@ function makeAllMutatorElements(rootNode) {
       block.arguments_.push(argname);
       block.updateParams_();
       listItemOnclick(rootNode);
-    })
-    list.push(elem);
+    }));
 
     block.arguments_.forEach(arg => {
       elem = makeListTextElement('Argument \"' + arg + '\"');
@@ -519,6 +502,16 @@ function makeAllMutatorElements(rootNode) {
   }
 
   return list;
+}
+
+function makeMutatorListElement(rootNode, text, innerFn) {
+  var block = rootNode.getLocation();
+  var elem = makeListTextElement(text);
+  elem.addEventListener('click', e => {
+    innerFn(block);
+    listItemOnclick(rootNode);
+  })
+  return elem;
 }
 
 function makeConnListItem(rootNode, candidate, text, alttext) {
