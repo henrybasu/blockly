@@ -500,7 +500,6 @@ function makeAllMutatorElements(rootNode) {
         elem.innerText = arg;
       });
       elem.addEventListener('blur', function(event) {
-        console.log('focus out');
         if (elem.innerText === "") {
           block.arguments_.splice(block.arguments_.indexOf(arg), 1);
           block.updateParams_();
