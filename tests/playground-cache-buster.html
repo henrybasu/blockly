@@ -157,10 +157,8 @@ class RequestManager {
 
   push(item) {
     if (item.getLocation() instanceof Blockly.Block) {
-      console.log('block');
       this.blockNode = item;
     } else if (item.getLocation() instanceof Blockly.Connection) {
-      console.log('conn');
       this.connectionNode = item;
     } else {
       var msg = 'fell through';
@@ -274,6 +272,15 @@ function alterSelectedWithEvent(e) {
 function generateParentNav(workspace, rootNode) {
   var pNav = document.getElementById('parent-nav');
   pNav.innerHTML = '';
+  pNav.appendChild(makeParentItem());
+
+  if (!rootNode) {
+    rootNode.getParentStack(true)
+        .filter(node => node.getType() === Blockly.ASTNode.types.BLOCK)
+        .reverse()
+        .map(makeParentItem)
+        .forEach(elem => pNav.appendChild(elem));
+  }
 
   if (workspace.requestManager.connectionNode) {
     var cancelItem = document.createElement('b');
@@ -285,18 +292,6 @@ function generateParentNav(workspace, rootNode) {
     pNav.appendChild(cancelItem);
     pNav.appendChild(document.createElement('br'))
   }
-
-  pNav.appendChild(makeParentItem());
-
-  if (!rootNode) {
-    return;
-  }
-
-  rootNode.getParentStack(true)
-      .filter(node => node.getType() === Blockly.ASTNode.types.BLOCK)
-      .reverse()
-      .map(makeParentItem)
-      .forEach(elem => pNav.appendChild(elem));
 }
 
 /**
@@ -488,7 +483,7 @@ function makeAllMutatorElements(rootNode) {
       }
 
       while (block.arguments_.includes(argname)) {
-        argname += 'I'
+        argname += 'I';
       }
 
       block.arguments_.push(argname);
@@ -496,7 +491,7 @@ function makeAllMutatorElements(rootNode) {
       listItemOnclick(rootNode);
     })
     list.push(elem);
-    
+
     block.arguments_.forEach(arg => {
       elem = makeListTextElement('Remove argument \"' + arg + '\"');
       elem.addEventListener('click', e => {
@@ -579,7 +574,6 @@ function makeInputListElement(node) {
   switch (node.getType()) {
     case Blockly.ASTNode.types.FIELD:
       if (location instanceof Blockly.FieldDropdown) {
-        console.log('instance of dropdown');
         return makeDropdownElement(location);
       } else {
         // non-dropdown field
@@ -592,12 +586,8 @@ function makeInputListElement(node) {
         if (targetInputs.length === 1) {
           return makeEdittableFieldElement2(targetInputs[0]);
         } else {
-          // console.log(location.targetConnection);
-          // console.log(node);
-          // console.log(node.in().next());
           var targetBlockNode = node.in().next();
           return makeListElement(targetBlockNode);
-          // return makeListTextElement('more than 1 input');
         }
       } else {
         return makeListTextElement('add block inline');
@@ -665,7 +655,6 @@ function makeListElement(node) {
   var block = node.getLocation();
   listElem.id = "li" + block.id;
   listElem.blockId = block.id;
-  console.log(block.inputList);
   listElem.appendChild(document.createTextNode(block.makeAriaLabel()));
   listElem.addEventListener('click', e => listItemOnclick(node));
   listElem.setAttribute('style',
