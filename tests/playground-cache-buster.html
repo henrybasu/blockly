@@ -147,7 +147,7 @@ function start() {
 }
 
 /**
- * Class to manage requests for blocks from connections
+ * Class to manage requests for blocks from connections, and vice-versa
  */
 class RequestManager {
   constructor() {
@@ -274,7 +274,7 @@ function generateParentNav(workspace, rootNode) {
   pNav.innerHTML = '';
   pNav.appendChild(makeParentItem());
 
-  if (!rootNode) {
+  if (rootNode) {
     rootNode.getParentStack(true)
         .filter(node => node.getType() === Blockly.ASTNode.types.BLOCK)
         .reverse()
@@ -283,6 +283,7 @@ function generateParentNav(workspace, rootNode) {
   }
 
   if (workspace.requestManager.connectionNode) {
+    pNav.appendChild(document.createElement('br'));
     var cancelItem = document.createElement('b');
     cancelItem.appendChild(document.createTextNode('Cancel Move'));
     cancelItem.addEventListener('click', e => {
@@ -290,7 +291,6 @@ function generateParentNav(workspace, rootNode) {
         generateList();
     });
     pNav.appendChild(cancelItem);
-    pNav.appendChild(document.createElement('br'))
   }
 }
 
