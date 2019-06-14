@@ -147,7 +147,8 @@ function start() {
 }
 
 /**
- * Class to manage requests for blocks from connections, and vice-versa
+ * Class to manage requests for blocks from connections, and vice-versa.
+ * Allows for a single connection request and a single block request at a time.
  */
 class RequestManager {
   /**
@@ -159,28 +160,37 @@ class RequestManager {
     this.connectionNode;
   }
 
+  /**
+   * Attempt to fill the request for this item.
+   * @param {Blockly.Block|Blockly.Connection}
+   * @return {boolean} true if successfully pushed, false if request fails
+   */
   push(item) {
     if (item.getLocation() instanceof Blockly.Block) {
       this.blockNode = item;
     } else if (item.getLocation() instanceof Blockly.Connection) {
       this.connectionNode = item;
     } else {
-      var msg = 'fell through';
-      msg.item = item;
-      console.log(msg);
-      return;
+      return false;
     }
 
-    this.service();
+    this.service_();
+    return true;
   }
 
-  service() {
+  /**
+   * Attempt to pair blockNode and connectionNode. If successful, join the
+   * connections, and then clear them.
+   * @private
+   */
+  service_() {
     if (!(this.blockNode && this.connectionNode)) {
       return;
     }
 
     var insertPointNode = this.connectionNode;
     var advance, back;
+    // define advance and back by the direction the connection node requests
     switch (insertPointNode.getType()) {
       case Blockly.ASTNode.types.NEXT:
       case Blockly.ASTNode.types.INPUT:
@@ -196,21 +206,26 @@ class RequestManager {
         return;
     }
 
-    var providedNode = this.blockNode;
-    var previousConnection = advance(insertPointNode);
-    if (previousConnection &&
-        previousConnection.getType() === Blockly.ASTNode.types.FIELD) {
-      previousConnection = null;
+    // Get the previous connection, disallow fields
+    var previous = advance(insertPointNode);
+    if (previous && previous.getType() === Blockly.ASTNode.types.FIELD) {
+      previous = null;
     }
 
-    insertPointNode.getLocation().connect(back(providedNode).getLocation());
-    if (previousConnection && previousConnection.getLocation) {
-      var sutureNode = advance(providedNode);
+    // connect this.blockNode and this.connectionNode
+    var provided = this.blockNode;
+    var providedBlock = back(provided).getLocation();
+    insertPointNode.getLocation().connect(providedBlock);
+
+    // restich any cuts made by connecting the nodes
+    if (previous && previous.getLocation) {
+      var sutureNode = advance(provided);
       if (sutureNode && sutureNode.getLocation) {
-        previousConnection.getLocation().connect(sutureNode.getLocation())
+        previous.getLocation().connect(sutureNode.getLocation())
       }
     }
 
+    // clear the values
     this.connectionNode = null;
     this.blockNode = null;
   }
@@ -349,19 +364,18 @@ function makeWorkspaceList(workspace) {
 function makeNodeList(rootNode) {
   var sublist = document.createElement('ul');
   sublist.appendChild(makeGoBackElement(rootNode));
-  var block = rootNode.getLocation();
+
   var connNode = workspace.requestManager.connectionNode;
+  var inlineOutputConn = connNode && connNode.getParentInput() &&
+      connNode.getParentInput().type === Blockly.INPUT_VALUE;
 
   var prevConn = rootNode.prev();
   if (prevConn) {
-    var inlineOutputConn = connNode && connNode.getParentInput() &&
-        connNode.getParentInput().type === 1;
     sublist.appendChild(makeConnListItem(rootNode, prevConn,
         inlineOutputConn? 'Tack me on side of': 'Insert me below',
         'Insert above me'));
   }
 
-  // TODO: load inputs here
   var inline = rootNode.getFirstInlineBlock();
   if (inline) {
     var inlineSeq = inline.sequence(nextInlineInput);
@@ -376,25 +390,11 @@ function makeNodeList(rootNode) {
   }
 
   if (!connNode && inNode) {
-    var inNodeSeq = inNode.sequence(n => n.next()).filter(n => n);
-    var counter = { // used mainly for if/elseif/else statements
-      tackVal: 1,
-      insertVal: 1,
-      tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
-      insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
-    }
-    inNodeSeq.map(n => makeBasicConnListItem(
-          n,
-          n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
-              'Tack on side' + counter.tackText():
-              'Insert within' + counter.insertText())
-        ).forEach(n => sublist.appendChild(n));
+    sublist.append(...makeAllInnerInputElements(inNode));
   }
 
-  // TODO: load mutator items here
-  var mutator = block.mutator;
-  if (mutator) {
-    sublist.append(...makeAllMutatorElements(rootNode))
+  if (rootNode.getLocation.mutator) {
+    sublist.append(...makeAllMutatorElements(rootNode));
   }
 
   var firstNested = rootNode.getFirstNestedBlock();
@@ -406,14 +406,28 @@ function makeNodeList(rootNode) {
 
   var nextConn = rootNode.next();
   if (nextConn) {
-    var inlineOutputConn = connNode && connNode.getParentInput() &&
-        connNode.getParentInput().type === 1;
     sublist.appendChild(makeConnListItem(rootNode, nextConn,
       inlineOutputConn? 'Tack me on side of': 'Insert me above',
       'Insert below me'));
   }
 
   return sublist;
+}
+
+function makeAllInnerInputElements(inNode) {
+  var inNodeSeq = inNode.sequence(n => n.next()).filter(n => n);
+  var counter = { // used mainly for if/elseif/else statements
+    tackVal: 1,
+    insertVal: 1,
+    tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
+    insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
+  }
+  return inNodeSeq.map(n => makeBasicConnListItem(
+        n,
+        n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
+            'Tack on side' + counter.tackText():
+            'Insert within' + counter.insertText())
+      )
 }
 
 function makeAllMutatorElements(rootNode) {
@@ -479,14 +493,6 @@ function makeAllMutatorElements(rootNode) {
       listItemOnclick(rootNode);
     }));
 
-    // block.arguments_.forEach(arg => {
-    //   elem = makeListTextElement('Remove argument \"' + arg + '\"');
-    //   elem.addEventListener('click', e => {
-    //     block.arguments_.splice(block.arguments_.indexOf(arg), 1);
-    //     block.updateParams_();
-    //     listItemOnclick(rootNode);
-    //   })
-
     block.arguments_.forEach(arg => {
       elem = makeListTextElement('Argument \"' + arg + '\"');
       elem.contentEditable = true;
@@ -505,9 +511,7 @@ function makeAllMutatorElements(rootNode) {
         }
 
       });
-      
 
-      // TODO: add rename argument option, maybe rename to empty string = delete
       list.push(elem);
     })
   }
