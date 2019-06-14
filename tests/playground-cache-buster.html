@@ -220,6 +220,7 @@ class RequestManager {
  */
 function generateList(e=undefined) {
   if (!workspace.getAllBlocks().length) {
+    document.getElementById('mainNavList').innerHTML = '';
     return;
   }
 
@@ -256,6 +257,9 @@ function alterSelectedWithEvent(e) {
       break;
     case Blockly.Events.UI:
       node = workspace.selectedNode;
+      break;
+    case Blockly.Events.BLOCK_DELETE:
+      node = null;
       break;
   }
 
