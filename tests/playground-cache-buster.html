@@ -309,67 +309,88 @@ function makeParentItem(node=undefined) {
   return item;
 }
 
+
 /**
  * Creates and returns the appropriately edittable HTML ListElement of node.
  * @param {!Blockly.ASTNode} node the input/field to represent
  * @return {HTMLElement} an edittable html representation of node
  */
 function makeInputListElement(node) {
-  var block = node.getLocation();
+  var location = node.getLocation();
   switch (node.getType()) {
     case Blockly.ASTNode.types.FIELD:
-      var options = block.getOptions();
-      if (!options.length) {
-        return null;
+      if (location instanceof Blockly.FieldDropdown) {
+        console.log('instance of dropdown');
+        return makeDropdownElement(location);
+      } else {
+        // non-dropdown field
+        return makeListTextElement('field but not a dropdown');
       }
-      var entry;
-      for (var i = 0, option; option = options[i]; i++) {
-        if (option[1] === block.getValue()) {
-          entry = [i, option];
-        }
-      }
-      if (!entry) {
-        entry = [0, block.getOptions()[0]];
-      }
-      var elem = makeListTextElement('Field: ' + entry[1][0]);
-      elem.setAttribute('aria-label', 'Field: ' + entry[1][0] + ', click to change');
-      elem.setAttribute('index', entry[0]);
-      elem.addEventListener('click', e => {
-        var newIndex = (parseInt(elem.getAttribute('index')) + 1)
-            % block.getOptions().length;
-        var option = block.getOptions()[newIndex];
-        var textNode = document.createTextNode('Field: ' + option[0]);
-        elem.setAttribute('aria-label', 'Field: ' + option[0] + ', click to change');
-        elem.replaceChild(textNode, elem.firstChild);
-        elem.setAttribute('index', newIndex);
-        Blockly.Events.disable();
-        // TODO: fix me, so very sad
-        try {
-          block.setValue(option[1]);
-          generateParentNav(workspace.selectedNode);
-        } catch (e) {
-
-        } finally {
-          Blockly.Events.enable();
-        }
-      });
-      return elem;
+      break;
     case Blockly.ASTNode.types.INPUT:
-      var inNode = node.in();
-      if (!inNode) {
-        return makeListTextElement('Add input');
+      if (location.targetConnection) {
+        var targetInputs = location.targetConnection.getSourceBlock().inputList;
+        if (targetInputs.length === 1) {
+          return makeEdittableFieldElement2(targetInputs[0]);
+        } else {
+          // console.log(location.targetConnection);
+          // console.log(node);
+          // console.log(node.in().next());
+          var targetBlockNode = node.in().next();
+          return makeListElement(targetBlockNode);
+          // return makeListTextElement('more than 1 input');
+        }
+      } else {
+        return makeListTextElement('add block inline');
       }
-      var block = inNode.next();
-      if (!block) {
-        return makeListTextElement('Add input');
-      }
-
-      return makeEdittableFieldElement(node);
+      break;
+    case Blockly.ASTNode.types.OUTPUT:
+      break;
     default:
       console.log('uncaught');
-      console.log(node);
+      // console.log(node);
       return null;
+      break;
   }
+}
+
+function makeDropdownElement(field) {
+  var options = field.getOptions();
+  if (!options.length) {
+    return null;
+  }
+  var entry;
+  for (var i = 0, option; option = options[i]; i++) {
+    if (option[1] === field.getValue()) {
+      entry = [i, option];
+    }
+  }
+  if (!entry) {
+    entry = [0, field.getOptions()[0]];
+  }
+  var elem = makeListTextElement('Field: ' + entry[1][0]);
+  elem.setAttribute('aria-label', 'Field: ' + entry[1][0] + ', click to change');
+  elem.setAttribute('index', entry[0]);
+  elem.addEventListener('click', e => {
+    var newIndex = (parseInt(elem.getAttribute('index')) + 1)
+        % field.getOptions().length;
+    var option = field.getOptions()[newIndex];
+    var textNode = document.createTextNode('Field: ' + option[0]);
+    elem.setAttribute('aria-label', 'Field: ' + option[0] + ', click to change');
+    elem.replaceChild(textNode, elem.firstChild);
+    elem.setAttribute('index', newIndex);
+    Blockly.Events.disable();
+    // TODO: fix me, so very sad
+    try {
+      field.setValue(option[1]);
+      generateParentNav(workspace.selectedNode);
+    } catch (e) {
+
+    } finally {
+      Blockly.Events.enable();
+    }
+  });
+  return elem;
 }
 
 /**
@@ -385,6 +406,7 @@ function makeListElement(node) {
   var block = node.getLocation();
   listElem.id = "li" + block.id;
   listElem.blockId = block.id;
+  console.log(block.inputList);
   listElem.appendChild(document.createTextNode(block.makeAriaLabel()));
   listElem.addEventListener('click', e => listItemOnclick(node));
   return listElem;
@@ -402,13 +424,54 @@ function makeListTextElement(text) {
 }
 
 /**
+ * TEST TEST TEST
+ */
+function makeEdittableFieldElement2(input) {
+  if (input.fieldRow.length === 1) {
+    var field = input.fieldRow[0];
+    if (field instanceof Blockly.FieldDropdown) {
+      return makeDropdownElement(field)
+    }
+    var fieldName = field.name;
+    var listElem = makeListTextElement(field.getText());
+    listElem.id = "li" + field.getSourceBlock().id;
+    listElem.contentEditable = true;
+    listElem.addEventListener('keyup', function(event) {
+      event.preventDefault();
+      if (event.keyCode === 13) {
+        var block = workspace.getBlockById(listElem.id.slice(2));
+        block.setFieldValue(listElem.innerText, fieldName);
+      }
+    });
+  } else {
+    var listElem = makeListTextElement('more than 1 field');
+  }
+  return listElem;
+
+  // return makeListTextElement('todo'); // TODO: fix me
+}
+
+/**
  * Creates and returns a textfield HTML li element linked to node's value.
  * @param {!Blockly.ASTNode} node the node containing the item to represent
  * @return {HTMLElement} an html list item that is edittable for number
  * and text fields.
  */
-function makeEdittableFieldElement(node) {
-  return makeListTextElement('todo'); // TODO: fix me
+function makeEdittableFieldElement(field) {
+  var fieldName = field.name;
+  var listElem = makeListTextElement(field.getText());
+  listElem.id = "li" + field.getSourceBlock().id;
+  listElem.contentEditable = true;
+  listElem.addEventListener('keyup', function(event) {
+    event.preventDefault();
+    if (event.keyCode === 13) {
+      var block = workspace.getBlockById(listElem.id.slice(2));
+      block.setFieldValue(listElem.innerText, fieldName);
+    }
+  });
+  return listElem;
+
+  // return makeListTextElement('todo'); // TODO: fix me
 }
 
 /**
@@ -496,6 +559,9 @@ function nextStackMarker(marker) {
  */
 function nextInlineInput(node) {
   var next = node.next();
+  if (next && next.getType() === Blockly.ASTNode.types.FIELD) {
+    return next;
+  }
   if (next && next.in() &&
       next.in().getType() != Blockly.ASTNode.types.PREVIOUS) {
     return next;
