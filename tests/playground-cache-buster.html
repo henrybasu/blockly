@@ -479,13 +479,34 @@ function makeAllMutatorElements(rootNode) {
       listItemOnclick(rootNode);
     }));
 
+    // block.arguments_.forEach(arg => {
+    //   elem = makeListTextElement('Remove argument \"' + arg + '\"');
+    //   elem.addEventListener('click', e => {
+    //     block.arguments_.splice(block.arguments_.indexOf(arg), 1);
+    //     block.updateParams_();
+    //     listItemOnclick(rootNode);
+    //   })
+
     block.arguments_.forEach(arg => {
-      elem = makeListTextElement('Remove argument \"' + arg + '\"');
-      elem.addEventListener('click', e => {
-        block.arguments_.splice(block.arguments_.indexOf(arg), 1);
-        block.updateParams_();
-        listItemOnclick(rootNode);
-      })
+      elem = makeListTextElement('Argument \"' + arg + '\"');
+      elem.contentEditable = true;
+      elem.addEventListener('focus', function(event) {
+        elem.innerText = arg;
+      });
+      elem.addEventListener('blur', function(event) {
+        console.log('focus out');
+        if (elem.innerText === "") {
+          block.arguments_.splice(block.arguments_.indexOf(arg), 1);
+          block.updateParams_();
+          listItemOnclick(rootNode);
+        } else {
+          block.arguments_.splice(block.arguments_.indexOf(arg), 1, elem.innerText);
+          block.updateParams_();
+        }
+
+      });
+      
+
       // TODO: add rename argument option, maybe rename to empty string = delete
       list.push(elem);
     })
@@ -672,7 +693,7 @@ function makeListTextElement(text) {
 
 /**
  * Creates and returns a textfield HTML li element linked to node's value.
- * @param {!Blockly.ASTNode} node the node containing the item to represent
+ * @param {!Blockly.ASTNode} input the input containing the item to represent
  * @return {HTMLElement} an html list item that is edittable for number
  * and text fields.
  */
