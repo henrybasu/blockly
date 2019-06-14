@@ -584,7 +584,7 @@ function makeInputListElement(node) {
       if (location.targetConnection) {
         var targetInputs = location.targetConnection.getSourceBlock().inputList;
         if (targetInputs.length === 1) {
-          return makeEdittableFieldElement2(targetInputs[0]);
+          return makeEdittableFieldElement(targetInputs[0]);
         } else {
           var targetBlockNode = node.in().next();
           return makeListElement(targetBlockNode);
@@ -674,9 +674,12 @@ function makeListTextElement(text) {
 }
 
 /**
- * TEST TEST TEST
+ * Creates and returns a textfield HTML li element linked to node's value.
+ * @param {!Blockly.ASTNode} node the node containing the item to represent
+ * @return {HTMLElement} an html list item that is edittable for number
+ * and text fields.
  */
-function makeEdittableFieldElement2(input) {
+function makeEdittableFieldElement(input) {
   if (input.fieldRow.length === 1) {
     var field = input.fieldRow[0];
     if (field instanceof Blockly.FieldDropdown) {
@@ -697,32 +700,9 @@ function makeEdittableFieldElement2(input) {
     var listElem = makeListTextElement('more than 1 field');
   }
   return listElem;
-
-  // return makeListTextElement('todo'); // TODO: fix me
 }
 
-/**
- * Creates and returns a textfield HTML li element linked to node's value.
- * @param {!Blockly.ASTNode} node the node containing the item to represent
- * @return {HTMLElement} an html list item that is edittable for number
- * and text fields.
- */
-function makeEdittableFieldElement(field) {
-  var fieldName = field.name;
-  var listElem = makeListTextElement(field.getText());
-  listElem.id = "li" + field.getSourceBlock().id;
-  listElem.contentEditable = true;
-  listElem.addEventListener('keyup', function(event) {
-    event.preventDefault();
-    if (event.keyCode === 13) {
-      var block = workspace.getBlockById(listElem.id.slice(2));
-      block.setFieldValue(listElem.innerText, fieldName);
-    }
-  });
-  return listElem;
 
-  // return makeListTextElement('todo'); // TODO: fix me
-}
 
 /**
  * Creates and returns a linked HTML li element linked to node's direct visual
