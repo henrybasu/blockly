@@ -143,44 +143,47 @@ function start() {
   taChange();
 
   workspace.addChangeListener(generateList);
-  workspace.requestManager = new RequestManager();
+  workspace.requestManager = new BlockConnectionJoiner();
+  // TODO: selection mode, only one next connections
 }
 
 /**
- * Class to manage requests for blocks from connections, and vice-versa
+ * Class to manage requests for blocks from connections, and vice-versa.
+ * Allows for a single connection request and a single block request at a time.
  */
-class RequestManager {
+class BlockConnectionJoiner {
   /**
-   * Names two fields, returns a connection request manager.
-   * @constructor
+   * Attempt to fill the request for this item. item must be Blockly.Block or
+   * Blockly.Connection.
+   * @param {Block.ASTNode} item
+   * @return {boolean} true if successfully pushed, false if request fails
    */
-  constructor() {
-    this.blockNode;
-    this.connectionNode;
-  }
-
   push(item) {
     if (item.getLocation() instanceof Blockly.Block) {
       this.blockNode = item;
     } else if (item.getLocation() instanceof Blockly.Connection) {
       this.connectionNode = item;
     } else {
-      var msg = 'fell through';
-      msg.item = item;
-      console.log(msg);
-      return;
+      return false;
     }
 
-    this.service();
+    this.service_();
+    return true;
   }
 
-  service() {
+  /**
+   * Attempt to pair blockNode and connectionNode. If successful, join the
+   * connections, and then clear them.
+   * @private
+   */
+  service_() {
     if (!(this.blockNode && this.connectionNode)) {
       return;
     }
 
     var insertPointNode = this.connectionNode;
     var advance, back;
+    // define advance and back by the direction the connection node requests
     switch (insertPointNode.getType()) {
       case Blockly.ASTNode.types.NEXT:
       case Blockly.ASTNode.types.INPUT:
@@ -196,21 +199,31 @@ class RequestManager {
         return;
     }
 
-    var providedNode = this.blockNode;
-    var previousConnection = advance(insertPointNode);
-    if (previousConnection &&
-        previousConnection.getType() === Blockly.ASTNode.types.FIELD) {
-      previousConnection = null;
+    // Get the previous connection, disallow fields
+    var previous = advance(insertPointNode);
+    if (previous && previous.getType() === Blockly.ASTNode.types.FIELD) {
+      previous = null;
     }
 
-    insertPointNode.getLocation().connect(back(providedNode).getLocation());
-    if (previousConnection && previousConnection.getLocation) {
-      var sutureNode = advance(providedNode);
-      if (sutureNode && sutureNode.getLocation) {
-        previousConnection.getLocation().connect(sutureNode.getLocation())
-      }
-    }
+    // connect this.blockNode and this.connectionNode
+    var provided = this.blockNode;
+    var providedBlock = back(provided).getLocation();
+    insertPointNode.getLocation().connect(providedBlock);
 
+    // restich any cuts made by connecting the nodes
+    // if (previous && previous.getLocation) {
+    //   var sutureNode = advance(provided);
+    //   if (sutureNode && sutureNode.getLocation) {
+    //     try {
+    //       previous.getLocation().connect(sutureNode.getLocation())
+    //     } catch(e) {
+    //       console.log('suture failed...');
+    //       console.log(e);
+    //     }
+    //   }
+    // }
+
+    // clear the values
     this.connectionNode = null;
     this.blockNode = null;
   }
@@ -255,12 +268,29 @@ function alterSelectedWithEvent(e) {
     case Blockly.Events.BLOCK_MOVE:
       var block = workspace.getBlockById(e.blockId);
       node = block && Blockly.ASTNode.createBlockNode(block);
+      if (workspace.requestManager.connectionNode) {
+        workspace.requestManager.push(node);
+      }
       break;
     case Blockly.Events.FINISHED_LOADING:
       node = null;
       break;
+    case Blockly.Events.BLOCK_CREATE:
+      var block = workspace.getBlockById(e.blockId);
+      node = block && Blockly.ASTNode.createBlockNode(block);
+      break;
     case Blockly.Events.UI:
-      node = workspace.selectedNode;
+      if (e.element !== 'selected' && e.element !== 'click') {
+        node = workspace.selectedNode;
+      } else if (!e.blockId) {
+        node = null;
+      } else {
+        var block = workspace.getBlockById(e.blockId);
+        node = Blockly.ASTNode.createBlockNode(block);
+        if (workspace.requestManager.connectionNode) {
+          workspace.requestManager.push(node);
+        }
+      }
       break;
     case Blockly.Events.BLOCK_DELETE:
       node = null;
@@ -349,19 +379,18 @@ function makeWorkspaceList(workspace) {
 function makeNodeList(rootNode) {
   var sublist = document.createElement('ul');
   sublist.appendChild(makeGoBackElement(rootNode));
-  var block = rootNode.getLocation();
+
   var connNode = workspace.requestManager.connectionNode;
+  var inlineOutputConn = connNode && connNode.getParentInput() &&
+      connNode.getParentInput().type === Blockly.INPUT_VALUE;
 
   var prevConn = rootNode.prev();
   if (prevConn) {
-    var inlineOutputConn = connNode && connNode.getParentInput() &&
-        connNode.getParentInput().type === 1;
     sublist.appendChild(makeConnListItem(rootNode, prevConn,
         inlineOutputConn? 'Tack me on side of': 'Insert me below',
         'Insert above me'));
   }
 
-  // TODO: load inputs here
   var inline = rootNode.getFirstInlineBlock();
   if (inline) {
     var inlineSeq = inline.sequence(nextInlineInput);
@@ -376,25 +405,11 @@ function makeNodeList(rootNode) {
   }
 
   if (!connNode && inNode) {
-    var inNodeSeq = inNode.sequence(n => n.next()).filter(n => n);
-    var counter = { // used mainly for if/elseif/else statements
-      tackVal: 1,
-      insertVal: 1,
-      tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
-      insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
-    }
-    inNodeSeq.map(n => makeBasicConnListItem(
-          n,
-          n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
-              'Tack on side' + counter.tackText():
-              'Insert within' + counter.insertText())
-        ).forEach(n => sublist.appendChild(n));
+    sublist.append(...makeAllInnerInputElements(inNode));
   }
 
-  // TODO: load mutator items here
-  var mutator = block.mutator;
-  if (mutator) {
-    sublist.append(...makeAllMutatorElements(rootNode))
+  if (rootNode.getLocation().mutator) {
+    sublist.append(...makeAllMutatorElements(rootNode));
   }
 
   var firstNested = rootNode.getFirstNestedBlock();
@@ -406,8 +421,6 @@ function makeNodeList(rootNode) {
 
   var nextConn = rootNode.next();
   if (nextConn) {
-    var inlineOutputConn = connNode && connNode.getParentInput() &&
-        connNode.getParentInput().type === 1;
     sublist.appendChild(makeConnListItem(rootNode, nextConn,
       inlineOutputConn? 'Tack me on side of': 'Insert me above',
       'Insert below me'));
@@ -416,7 +429,37 @@ function makeNodeList(rootNode) {
   return sublist;
 }
 
+/**
+ * Returns all inner input nodes as a array of html elements, starting with
+ * inNode.
+ * @param {!Blockly.ASTNode} inNode the first inner input element to convert
+ * @return {Array<HTMLElement>} an array containing all inner input elements
+ * encoded as html list items
+ */
+function makeAllInnerInputElements(inNode) {
+  var inNodeSeq = inNode.sequence(n => n.next()).filter(n => n);
+  var counter = { // used mainly for if/elseif/else statements
+    tackVal: 1,
+    insertVal: 1,
+    tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
+    insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
+  }
+  return inNodeSeq.map(n => makeBasicConnListItem(
+        n,
+        n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
+            'Tack on side' + counter.tackText():
+            'Insert within' + counter.insertText())
+      );
+}
+
+/**
+ * Returns all mutator options for the block rootNode wraps in an array.
+ * @param {!Blockly.ASTNode} rootNode node containing the block with mutator
+ * @return {Array<HTMLElement>} an array containing all mutator options encoded
+ * as html list items.
+ */
 function makeAllMutatorElements(rootNode) {
+  var block = rootNode.getLocation();
   var list = [];
   var block = rootNode.getLocation();
 
@@ -492,12 +535,13 @@ function makeAllMutatorElements(rootNode) {
           block.updateParams_();
           listItemOnclick(rootNode);
         } else {
-          block.arguments_.splice(block.arguments_.indexOf(arg), 1, elem.innerText);
+          block.arguments_.splice(
+            block.arguments_.indexOf(arg), 1, elem.innerText);
           block.updateParams_();
         }
 
       });
-      
+
       list.push(elem);
     })
   }
@@ -505,6 +549,18 @@ function makeAllMutatorElements(rootNode) {
   return list;
 }
 
+/**
+ * Returns an html list item that encodes the mutator option defined by text,
+ * with source node rootNode, and onclick listener innerFn that accepts
+ * rootNode.getLocation(). (listItemOnclick(rootNode) is performed
+ * automatically.)
+ * @param {!Blockly.ASTNode} rootNode node containing the block with mutator
+ * @param {!string} text option text
+ * @param {!function(Blockly.Block)} additional onclick listener that accepts
+ * rootNode.getLocation()
+ * @return {HTMLElement} an html list item encoding the mutator option defined
+ * by rootNode and text, with onclick behavior innerFn(rootNode.getLocation())
+ */
 function makeMutatorListElement(rootNode, text, innerFn) {
   var block = rootNode.getLocation();
   var elem = makeListTextElement(text);
@@ -811,7 +867,7 @@ function nextInlineInput(node) {
 
 /**
  * Returns all blocks in the main workspace encapsulated in nodes.
- * @return {Array.<Blockly.ASTNode>} all possible nodes from the main workspace
+ * @return {Array<Blockly.ASTNode>} all possible nodes from the main workspace
  */
 function getAllNodes() {
     var ws = Blockly.getMainWorkspace();
