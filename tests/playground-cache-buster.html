@@ -418,6 +418,7 @@ function makeNodeList(rootNode) {
 
 function makeAllMutatorElements(rootNode) {
   var list = [];
+  var block = rootNode.getLocation();
 
   if (block.elseifCount_ != undefined) {
     list.push(makeMutatorListElement(rootNode, 'Add elseif', block => {
@@ -604,12 +605,17 @@ function makeInputListElement(node) {
       break;
     default:
       console.log('uncaught');
-      // console.log(node);
+      console.log(node);
       return null;
       break;
   }
 }
 
+/**
+ * Creates and returns a cyclable (on click) dropdown HTML element.
+ * @param {!Blockly.ASTNode} field the dropdown field to represent
+ * @return {HTMLElement} an edittable html representation of the field
+ */
 function makeDropdownElement(field) {
   var options = field.getOptions();
   if (!options.length) {
@@ -639,7 +645,7 @@ function makeDropdownElement(field) {
     // TODO: fix me, so very sad
     try {
       field.setValue(option[1]);
-      generateParentNav(workspace.selectedNode);
+      generateParentNav(workspace, workspace.selectedNode);
     } catch (e) {
 
     } finally {
@@ -696,12 +702,9 @@ function makeEdittableFieldElement(input) {
     var listElem = makeListTextElement(field.getText());
     listElem.id = "li" + field.getSourceBlock().id;
     listElem.contentEditable = true;
-    listElem.addEventListener('keyup', function(event) {
-      event.preventDefault();
-      if (event.keyCode === 13) {
-        var block = workspace.getBlockById(listElem.id.slice(2));
-        block.setFieldValue(listElem.innerText, fieldName);
-      }
+    listElem.addEventListener('blur', function(event) {
+      var block = workspace.getBlockById(listElem.id.slice(2));
+      block.setFieldValue(listElem.innerText, fieldName);
     });
   } else {
     var listElem = makeListTextElement('more than 1 field');
