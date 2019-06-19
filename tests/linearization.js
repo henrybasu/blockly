@@ -1,8 +1,7 @@
 /**
  * @fileoverview The class for generating accessible linearization
- * of a workspace.
+ * of a workspace, and a helper classes
  */
-
 
 /**
 * Class to manage requests for blocks from connections, and vice-versa.
@@ -107,7 +106,19 @@ class Linearization {
     this.parentNav = parentNav;
     this.mainNavList = mainNavList;
     this.blockJoiner = new BlockJoiner();
+    this.mode = this.SelectionMode.VIEW;
     workspace.addChangeListener(this.generateList_);
+  }
+
+
+  /**
+   * Selection Modes
+   * @enum {string}
+   */
+  SelectionMode = {
+    VIEW: 'View',
+    EDIT: 'Edit',
+    MUTATE: 'Mutate'
   }
 
   /**
@@ -154,8 +165,12 @@ class Linearization {
       case Blockly.Events.BLOCK_MOVE:
         var block = workspace.getBlockById(e.blockId);
         node = block && Blockly.ASTNode.createBlockNode(block);
-        if (this.blockJoiner.connectionNode) {
-          this.blockJoiner.push(node);
+        if (block && this.blockJoiner.connectionNode) {
+          try {
+            this.blockJoiner.push(node);
+          } catch(e) {
+            this.blockJoiner.blockNode = null;
+          }
         }
         break;
       case Blockly.Events.FINISHED_LOADING:
@@ -213,10 +228,20 @@ class Linearization {
       cancelItem.appendChild(document.createTextNode('Cancel Move'));
       cancelItem.addEventListener('click', e => {
           this.blockJoiner.connectionNode = null;
-          generateList_();
+          this.generateList_();
       });
       pNav.appendChild(cancelItem);
     }
+
+    var modeItem = document.createElement('b');
+    modeItem.appendChild(document.createTextNode('Mode: ' + this.mode));
+    modeItem.addEventListener('click', e => {
+      this.mode = this.mode === this.SelectionMode.VIEW?
+          this.SelectionMode.EDIT: this.SelectionMode.VIEW;
+      this.generateList_();
+    });
+    pNav.appendChild(document.createElement('br'));
+    pNav.appendChild(modeItem);
   }
 
 /**
@@ -274,8 +299,9 @@ class Linearization {
     var inlineOutputConn = connNode && connNode.getParentInput() &&
         connNode.getParentInput().type === Blockly.INPUT_VALUE;
 
+
     var prevConn = rootNode.prev();
-    if (prevConn) {
+    if (this.mode === this.SelectionMode.EDIT && prevConn) {
       sublist.appendChild(this.makeConnListItem_(rootNode, prevConn,
           inlineOutputConn? 'Tack me on side of': 'Insert me below',
           'Insert above me'));
@@ -294,11 +320,11 @@ class Linearization {
       inNode = inNode.next();
     }
 
-    if (!connNode && inNode) {
+    if (this.mode === this.SelectionMode.EDIT && !connNode && inNode) {
       sublist.append(...this.makeAllInnerInputElements_(inNode));
     }
 
-    if (rootNode.getLocation().mutator) {
+    if (this.mode === this.SelectionMode.EDIT && rootNode.getLocation().mutator) {
       sublist.append(...this.makeAllMutatorElements_(rootNode));
     }
 
@@ -310,7 +336,7 @@ class Linearization {
     }
 
     var nextConn = rootNode.next();
-    if (nextConn) {
+    if (this.mode === this.SelectionMode.EDIT && nextConn) {
       sublist.appendChild(this.makeConnListItem_(rootNode, nextConn,
         inlineOutputConn? 'Tack me on side of': 'Insert me above',
         'Insert below me'));
@@ -419,7 +445,7 @@ class Linearization {
           'Argument \"' + arg + '\"');
         elem.contentEditable = true;
         elem.addEventListener('focus', (e) => elem.innerText = arg);
-        elem.addEventListener('blur', function(event) {
+        elem.addEventListener('blur', (event) => {
           if (elem.innerText === "") {
             block.arguments_.splice(block.arguments_.indexOf(arg), 1);
             block.updateParams_();
@@ -591,7 +617,7 @@ class Linearization {
       listElem = Linearization.makeListTextElement(field.getText());
       listElem.id = "li" + field.getSourceBlock().id;
       listElem.contentEditable = true;
-      listElem.addEventListener('keyup', function(event) {
+      listElem.addEventListener('keyup', (event) => {
         event.preventDefault();
         if (event.keyCode === 13) {
           var block = this.workspace.getBlockById(listElem.id.slice(2));
@@ -749,3 +775,96 @@ class Linearization {
    return null;
  }
 }
+
+// Unused code
+//
+// /**
+//  * Returns all blocks in the main workspace encapsulated in nodes.
+//  * @return {Array<Blockly.ASTNode>} all possible nodes from the main workspace
+//  */
+// function getAllNodes() {
+//     var ws = Blockly.getMainWorkspace();
+//     var curNode = Blockly.ASTNode.createWorkspaceNode(ws, new goog.math.Coordinate(100,100));
+//     var nodes = [];
+//     do {
+//       nodes.push(curNode);
+//       curNode = treeTraversal(curNode);
+//     } while (curNode);
+//     return nodes;
+// }
+//
+// /**
+//  * Decides what nodes to traverse and which ones to skip. Currently, it
+//  * skips output, stack and workspace nodes.
+//  * @param {Blockly.ASTNode} node The ast node to check whether it is valid.
+//  * @return {Boolean} True if the node should be visited, false otherwise.
+//  * @package
+//  */
+// function validNode(node) {
+//   var isValid = false;
+//   if (node && (node.getType() === Blockly.ASTNode.types.BLOCK
+//     || node.getType() === Blockly.ASTNode.types.INPUT
+//     || node.getType() === Blockly.ASTNode.types.FIELD
+//     || node.getType() === Blockly.ASTNode.types.NEXT
+//     || node.getType() === Blockly.ASTNode.types.PREVIOUS)) {
+//       isValid = true;
+//   }
+//   return isValid;
+// }
+//
+// /**
+//  * From the given node find either the next valid sibling or parent.
+//  * @param {Blockly.ASTNode} node The current position in the ast.
+//  * @return {Blockly.ASTNode} The parent ast node or null if there are no
+//  * valid parents.
+//  * @package
+//  */
+// function findSiblingOrParent(node) {
+//   if (!node) {
+//     return null;
+//   }
+//   var nextNode = node.next();
+//   if (nextNode) {
+//     return nextNode;
+//   }
+//   return findSiblingOrParent(node.out());
+// }
+//
+// /**
+//  * Uses pre order traversal to go navigate the blockly ast. This will allow
+//  * a user to easily navigate the entire blockly AST without having to go in
+//  * and out levels on the tree.
+//  * @param {Blockly.ASTNode} node The current position in the ast.
+//  * @return {Blockly.ASTNode} The next node in the traversal.
+//  * @package
+//  */
+// function treeTraversal(node, takeNode=validNode) {
+//   if (!node) {
+//     return null;
+//   }
+//   var newNode = node.in() || node.next();
+//   if (takeNode(newNode)) {
+//     return newNode;
+//   } else if (newNode) {
+//     return treeTraversal(newNode, takeNode);
+//   } else {
+//     var siblingOrParent = findSiblingOrParent(node);
+//     if (takeNode(siblingOrParent)) {
+//       return siblingOrParent;
+//     } else if (siblingOrParent
+//       && siblingOrParent.getType() !== Blockly.ASTNode.types.WORKSPACE) {
+//       return treeTraversal(siblingOrParent, takeNode);
+//     }
+//   }
+// }
+// /**
+//  * Finds the next node in the tree traversal starting at the location of
+//  * the cursor.
+//  * @return {Blockly.ASTNode} The next node in the traversal.
+//  * @package
+//  */
+// function findNext() {
+//     var cursor = Blockly.Navigation.cursor_;
+//     var curNode = cursor.getCurNode();
+//     return treeTraversal(curNode);
+// }
