@@ -45,10 +45,10 @@ goog.require('Blockly.FieldTextInput');
  */
 Blockly.FieldNumber = function(opt_value, opt_min, opt_max, opt_precision,
     opt_validator) {
+  this.setConstraints(opt_min, opt_max, opt_precision);
   opt_value = (opt_value && !isNaN(opt_value)) ? String(opt_value) : '0';
   Blockly.FieldNumber.superClass_.constructor.call(
       this, opt_value, opt_validator);
-  this.setConstraints(opt_min, opt_max, opt_precision);
 };
 goog.inherits(Blockly.FieldNumber, Blockly.FieldTextInput);
 
@@ -66,6 +66,14 @@ Blockly.FieldNumber.fromJson = function(options) {
 };
 
 /**
+ * Serializable fields are saved by the XML renderer, non-serializable fields
+ * are not. Editable fields should also be serializable.
+ * @type {boolean}
+ * @const
+ */
+Blockly.FieldNumber.prototype.SERIALIZABLE = true;
+
+/**
  * Set the maximum, minimum and precision constraints on this field.
  * Any of these properties may be undefiend or NaN to be disabled.
  * Setting precision (usually a power of 10) enforces a minimum step between
@@ -79,11 +87,14 @@ Blockly.FieldNumber.fromJson = function(options) {
 Blockly.FieldNumber.prototype.setConstraints = function(min, max, precision) {
   precision = parseFloat(precision);
   this.precision_ = isNaN(precision) ? 0 : precision;
+  var precisionString = this.precision_.toString();
+  var decimalIndex = precisionString.indexOf('.');
+  this.fractionalDigits_ = (decimalIndex == -1) ? -1 :
+      precisionString.length - (decimalIndex + 1);
   min = parseFloat(min);
   this.min_ = isNaN(min) ? -Infinity : min;
   max = parseFloat(max);
   this.max_ = isNaN(max) ? Infinity : max;
-  this.setValue(this.callValidator(this.getValue()));
 };
 
 /**
@@ -106,13 +117,14 @@ Blockly.FieldNumber.prototype.classValidator = function(text) {
     // Invalid number.
     return null;
   }
+  // Get the value in range.
+  n = Math.min(Math.max(n, this.min_), this.max_);
   // Round to nearest multiple of precision.
   if (this.precision_ && isFinite(n)) {
     n = Math.round(n / this.precision_) * this.precision_;
   }
-  // Get the value in range.
-  n = Math.min(Math.max(n, this.min_), this.max_);
-  return String(n);
+  return (this.fractionalDigits_ == -1) ? String(n) :
+      n.toFixed(this.fractionalDigits_);
 };
 
 Blockly.Field.register('field_number', Blockly.FieldNumber);

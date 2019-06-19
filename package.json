@@ -1,6 +1,6 @@
 {
   "name": "blockly",
-  "version": "1.20190419.0",
+  "version": "1.20190419.0-develop",
   "description": "Blockly is a library for building visual programming editors.",
   "main": "blockly_node_javascript_en.js",
   "keywords": [
@@ -34,7 +34,7 @@
     "gulp-series": "^1.0.2",
     "gulp-shell": "^0.6.5",
     "jshint": "^2.10.1",
-    "webdriverio": "^4.14.1"
+    "webdriverio": "^5.8.0"
   },
   "jshintConfig": {
     "globalstrict": true,

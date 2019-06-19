@@ -316,6 +316,10 @@ Blockly.BlockSvg.prototype.getHeightWidth = function() {
  *   If true, also render block's parent, grandparent, etc.  Defaults to true.
  */
 Blockly.BlockSvg.prototype.render = function(opt_bubble) {
+  if (!this.workspace) {
+    // This block is being deleted so don't try to render it.
+    return;
+  }
   Blockly.Field.startCache();
   this.rendered = true;
 
@@ -1159,31 +1163,6 @@ Blockly.BlockSvg.prototype.renderStatementInput_ = function(pathObject, row,
       highlightSteps.push('v', Blockly.BlockSvg.SEP_SPACE_Y - 1);
     }
     cursor.y += Blockly.BlockSvg.SEP_SPACE_Y;
-  }
-};
-
-/**
- * Position an new block correctly, so that it doesn't move the existing block
- * when connected to it.
- * @param {!Blockly.Block} newBlock The block to position - either the first
- *     block in a dragged stack or an insertion marker.
- * @param {!Blockly.Connection} newConnection The connection on the new block's
- *     stack - either a connection on newBlock, or the last NEXT_STATEMENT
- *     connection on the stack if the stack's being dropped before another
- *     block.
- * @param {!Blockly.Connection} existingConnection The connection on the
- *     existing block, which newBlock should line up with.
- */
-Blockly.BlockSvg.prototype.positionNewBlock = function(newBlock, newConnection,
-    existingConnection) {
-  // We only need to position the new block if it's before the existing one,
-  // otherwise its position is set by the previous block.
-  if (newConnection.type == Blockly.NEXT_STATEMENT ||
-      newConnection.type == Blockly.INPUT_VALUE) {
-    var dx = existingConnection.x_ - newConnection.x_;
-    var dy = existingConnection.y_ - newConnection.y_;
-
-    newBlock.moveBy(dx, dy);
   }
 };
 

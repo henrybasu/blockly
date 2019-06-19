@@ -445,6 +445,10 @@ Blockly.Connection.prototype.connect = function(otherConnection) {
     return;
   }
   this.checkConnection_(otherConnection);
+  var eventGroup = Blockly.Events.getGroup();
+  if (!eventGroup) {
+    Blockly.Events.setGroup(true);
+  }
   // Determine which block is superior (higher in the source stack).
   if (this.isSuperior()) {
     // Superior block.
@@ -452,6 +456,9 @@ Blockly.Connection.prototype.connect = function(otherConnection) {
   } else {
     // Inferior block.
     otherConnection.connect_(this);
+  }
+  if (!eventGroup) {
+    Blockly.Events.setGroup(false);
   }
 };
 
@@ -542,8 +549,16 @@ Blockly.Connection.prototype.disconnect = function() {
     childBlock = this.sourceBlock_;
     parentConnection = otherConnection;
   }
+
+  var eventGroup = Blockly.Events.getGroup();
+  if (!eventGroup) {
+    Blockly.Events.setGroup(true);
+  }
   this.disconnectInternal_(parentBlock, childBlock);
   parentConnection.respawnShadow_();
+  if (!eventGroup) {
+    Blockly.Events.setGroup(false);
+  }
 };
 
 /**
@@ -694,6 +709,25 @@ Blockly.Connection.prototype.getShadowDom = function() {
  */
 Blockly.Connection.prototype.neighbours_ = function(/* maxLimit */) {
   return [];
+};
+
+/**
+ * Get the parent input of a connection.
+ * @return {Blockly.Input} The input that the connection belongs to or null if
+ *     no parent exists.
+ * @package
+ */
+Blockly.Connection.prototype.getParentInput = function() {
+  var parentInput = null;
+  var block = this.sourceBlock_;
+  var inputs = block.inputList;
+  for (var idx = 0; idx < block.inputList.length; idx++) {
+    if (inputs[idx].connection === this) {
+      parentInput = inputs[idx];
+      break;
+    }
+  }
+  return parentInput;
 };
 
 /**

@@ -138,6 +138,13 @@ Blockly.Field.prototype.text_ = '';
 Blockly.Field.prototype.sourceBlock_ = null;
 
 /**
+ * Does this block need to be re-rendered?
+ * @type {boolean}
+ * @private
+ */
+Blockly.Field.prototype.isDirty_ = true;
+
+/**
  * Is the field visible, or hidden due to the block being collapsed?
  * @type {boolean}
  * @protected
@@ -165,9 +172,23 @@ Blockly.Field.prototype.clickTarget_ = null;
 Blockly.Field.NBSP = '\u00A0';
 
 /**
- * Editable fields are saved by the XML renderer, non-editable fields are not.
+ * Editable fields usually show some sort of UI indicating they are editable.
+ * They will also be saved by the XML renderer.
+ * @type {boolean}
+ * @const
+ * @default
  */
 Blockly.Field.prototype.EDITABLE = true;
+
+/**
+ * Serializable fields are saved by the XML renderer, non-serializable fields
+ * are not. Editable fields should also be serializable. This is not the
+ * case by default so that SERIALIZABLE is backwards compatible.
+ * @type {boolean}
+ * @const
+ * @default
+ */
+Blockly.Field.prototype.SERIALIZABLE = false;
 
 /**
  * Attach this field to a block.
@@ -178,6 +199,14 @@ Blockly.Field.prototype.setSourceBlock = function(block) {
     throw Error('Field already bound to a block.');
   }
   this.sourceBlock_ = block;
+};
+
+/**
+ * Get the source block for this field.
+ * @return {Blockly.Block} The source block, or null if there is none.
+ */
+Blockly.Field.prototype.getSourceBlock = function() {
+  return this.sourceBlock_;
 };
 
 /**
@@ -223,6 +252,30 @@ Blockly.Field.prototype.initModel = function() {
 };
 
 /**
+ * Sets the field's value based on the given XML element. Should only be
+ * called by Blockly.Xml.
+ * @param {!Element} fieldElement The element containing info about the
+ *    field's state.
+ * @package
+ */
+Blockly.Field.prototype.fromXml = function(fieldElement) {
+  this.setValue(fieldElement.textContent);
+};
+
+/**
+ * Serializes this field's value to XML. Should only be called by Blockly.Xml.
+ * @param {!Element} fieldElement The element to populate with info about the
+ *    field's state.
+ * @return {!Element} The element containing info about the field's state.
+ * @package
+ */
+Blockly.Field.prototype.toXml = function(fieldElement) {
+  fieldElement.setAttribute('name', this.name);
+  fieldElement.textContent = this.getValue();
+  return fieldElement;
+};
+
+/**
  * Dispose of all DOM objects belonging to this editable field.
  */
 Blockly.Field.prototype.dispose = function() {
@@ -261,13 +314,32 @@ Blockly.Field.prototype.updateEditable = function() {
 
 /**
  * Check whether this field is currently editable.  Some fields are never
- * editable (e.g. text labels).  Those fields are not serialized to XML.  Other
- * fields may be editable, and therefore serialized, but may exist on
+ * EDITABLE (e.g. text labels). Other fields may be EDITABLE but may exist on
  * non-editable blocks.
  * @return {boolean} Whether this field is editable and on an editable block
  */
 Blockly.Field.prototype.isCurrentlyEditable = function() {
   return this.EDITABLE && !!this.sourceBlock_ && this.sourceBlock_.isEditable();
+};
+
+/**
+ * Check whether this field should be serialized by the XML renderer.
+ * Handles the logic for backwards compatibility and incongruous states.
+ * @return {boolean} Whether this field should be serialized or not.
+ */
+Blockly.Field.prototype.isSerializable = function() {
+  var isSerializable = false;
+  if (this.name) {
+    if (this.SERIALIZABLE) {
+      isSerializable = true;
+    } else if (this.EDITABLE) {
+      console.warn('Detected an editable field that was not serializable.' +
+        ' Please define SERIALIZABLE property as true on all editable custom' +
+        ' fields. Proceeding with serialization.');
+      isSerializable = true;
+    }
+  }
+  return isSerializable;
 };
 
 /**
@@ -279,8 +351,10 @@ Blockly.Field.prototype.isVisible = function() {
 };
 
 /**
- * Sets whether this editable field is visible or not.
+ * Sets whether this editable field is visible or not. Should only be called
+ * by input.setVisible.
  * @param {boolean} visible True if visible.
+ * @package
  */
 Blockly.Field.prototype.setVisible = function(visible) {
   if (this.visible_ == visible) {
@@ -290,7 +364,7 @@ Blockly.Field.prototype.setVisible = function(visible) {
   var root = this.getSvgRoot();
   if (root) {
     root.style.display = visible ? 'block' : 'none';
-    this.render_();
+    this.size_.width = 0;
   }
 };
 
@@ -371,14 +445,10 @@ Blockly.Field.prototype.getSvgRoot = function() {
  * @protected
  */
 Blockly.Field.prototype.render_ = function() {
-  if (!this.visible_) {
-    this.size_.width = 0;
-    return;
-  }
-
   // Replace the text.
   this.textElement_.textContent = this.getDisplayText_();
   this.updateWidth();
+  this.isDirty_ = false;
 };
 
 /**
@@ -458,10 +528,18 @@ Blockly.Field.stopCache = function() {
 
 /**
  * Returns the height and width of the field.
+ *
+ * This should *in general* be the only place render_ gets called from.
  * @return {!goog.math.Size} Height and width.
  */
 Blockly.Field.prototype.getSize = function() {
-  if (!this.size_.width) {
+  if (this.isDirty_) {
+    this.render_();
+  } else if (this.visible_ && this.size_.width == 0) {
+    // If the field is not visible the width will be 0 as well, one of the
+    // problems with the old system.
+    console.warn('Deprecated use of setting size_.width to 0 to rerender a' +
+      ' field. Set field.isDirty_ to true instead.');
     this.render_();
   }
   return this.size_;
@@ -546,9 +624,7 @@ Blockly.Field.prototype.setText = function(newText) {
  * @package
  */
 Blockly.Field.prototype.forceRerender = function() {
-  // Set width to 0 to force a rerender of this field.
-  this.size_.width = 0;
-
+  this.isDirty_ = true;
   if (this.sourceBlock_ && this.sourceBlock_.rendered) {
     this.sourceBlock_.render();
     this.sourceBlock_.bumpNeighbours_();
@@ -574,6 +650,12 @@ Blockly.Field.prototype.setValue = function(newValue) {
     // No change if null.
     return;
   }
+  // Validate input.
+  var validated = this.callValidator(newValue);
+  if (validated !== null) {
+    newValue = validated;
+  }
+  // Check for change.
   var oldValue = this.getValue();
   if (oldValue == newValue) {
     return;
@@ -639,4 +721,28 @@ Blockly.Field.prototype.getAbsoluteXY_ = function() {
  */
 Blockly.Field.prototype.referencesVariables = function() {
   return false;
+};
+
+/**
+ * Search through the list of inputs and their fields in order to find the
+ * parent input of a field.
+ * @return {Blockly.Input} The input that the field belongs to.
+ * @package
+ */
+Blockly.Field.prototype.getParentInput = function() {
+  var parentInput = null;
+  var block = this.sourceBlock_;
+  var inputs = block.inputList;
+
+  for (var idx = 0; idx < block.inputList.length; idx++) {
+    var input = inputs[idx];
+    var fieldRows = input.fieldRow;
+    for (var j = 0; j < fieldRows.length; j++) {
+      if (fieldRows[j] === this) {
+        parentInput = input;
+        break;
+      }
+    }
+  }
+  return parentInput;
 };

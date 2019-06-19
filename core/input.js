@@ -85,6 +85,14 @@ Blockly.Input.prototype.appendField = function(field, opt_name) {
 };
 
 /**
+ * Get the source block for this input.
+ * @return {Blockly.Block} The source block, or null if there is none.
+ */
+Blockly.Input.prototype.getSourceBlock = function() {
+  return this.sourceBlock_;
+};
+
+/**
  * Inserts a field (or label from string), and all prefix and suffix fields, at
  * the location of the input's field row.
  * @param {number} index The index at which to insert field.
@@ -163,9 +171,10 @@ Blockly.Input.prototype.isVisible = function() {
 
 /**
  * Sets whether this input is visible or not.
- * Used to collapse/uncollapse a block.
+ * Should only be used to collapse/uncollapse a block.
  * @param {boolean} visible True if visible.
  * @return {!Array.<!Blockly.Block>} List of blocks to render.
+ * @package
  */
 Blockly.Input.prototype.setVisible = function(visible) {
   var renderList = [];

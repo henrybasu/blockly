@@ -39,12 +39,15 @@ goog.require('Blockly.FieldColour');
 // Add it only if you need it.
 //goog.require('Blockly.FieldDate');
 goog.require('Blockly.FieldDropdown');
+goog.require('Blockly.FieldLabelSerializable');
 goog.require('Blockly.FieldImage');
 goog.require('Blockly.FieldTextInput');
 goog.require('Blockly.FieldNumber');
 goog.require('Blockly.FieldVariable');
 goog.require('Blockly.Generator');
 goog.require('Blockly.Msg');
+// TODO: Decide if this require actually goes here.
+goog.require('Blockly.Navigation');
 goog.require('Blockly.Procedures');
 goog.require('Blockly.Toolbox');
 goog.require('Blockly.Touch');
@@ -76,6 +79,18 @@ Blockly.mainWorkspace = null;
  * @type {Blockly.Block}
  */
 Blockly.selected = null;
+
+/**
+ * Current cursor.
+ * @type {Blockly.Cursor}
+ */
+Blockly.cursor = null;
+
+/**
+ * Whether or not we're currently in keyboard accessibility mode.
+ * @type {boolean}
+ */
+Blockly.keyboardAccessibilityMode = false;
 
 /**
  * All of the connections on blocks that are currently being dragged.
@@ -204,6 +219,9 @@ Blockly.onKeyDown_ = function(e) {
   if (e.keyCode == 27) {
     // Pressing esc closes the context menu.
     Blockly.hideChaff();
+    if (Blockly.keyboardAccessibilityMode) {
+      Blockly.Navigation.navigate(e);
+    }
   } else if (e.keyCode == 8 || e.keyCode == 46) {
     // Delete or backspace.
     // Stop the browser from going back to the previous page.
@@ -259,6 +277,9 @@ Blockly.onKeyDown_ = function(e) {
       Blockly.hideChaff();
       workspace.undo(e.shiftKey);
     }
+  } else if (Blockly.keyboardAccessibilityMode
+    && Blockly.Navigation.navigate(e)) {
+    return;
   }
   // Common code for delete and cut.
   // Don't delete in the flyout.

@@ -77,6 +77,14 @@ Blockly.FieldDropdown.fromJson = function(options) {
 };
 
 /**
+ * Serializable fields are saved by the XML renderer, non-serializable fields
+ * are not. Editable fields should also be serializable.
+ * @type {boolean}
+ * @const
+ */
+Blockly.FieldDropdown.prototype.SERIALIZABLE = true;
+
+/**
  * Horizontal distance that a checkmark overhangs the dropdown.
  */
 Blockly.FieldDropdown.CHECKMARK_OVERHANG = 25;
@@ -429,10 +437,6 @@ Blockly.FieldDropdown.prototype.setValue = function(newValue) {
  * @private
  */
 Blockly.FieldDropdown.prototype.render_ = function() {
-  if (!this.visible_) {
-    this.size_.width = 0;
-    return;
-  }
   if (this.sourceBlock_ && this.arrow_) {
     // Update arrow's colour.
     this.arrow_.style.fill = this.sourceBlock_.getColour();

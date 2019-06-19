@@ -642,6 +642,11 @@ Blockly.Css.CONTENT = [
     'max-height: 100%;',
   '}',
 
+  '.blocklyVerticalCursor {',
+    'stroke-width: 3px;',
+    'fill: rgba(255,255,255,0.5);',
+  '}',
+
   '.blocklyDropdownMenu {',
     'padding: 0 !important;',
   '}',

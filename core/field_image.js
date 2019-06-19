@@ -84,7 +84,10 @@ Blockly.FieldImage.fromJson = function(options) {
 };
 
 /**
- * Editable fields are saved by the XML renderer, non-editable fields are not.
+ * Editable fields usually show some sort of UI indicating they are
+ * editable. This field should not.
+ * @type {boolean}
+ * @const
  */
 Blockly.FieldImage.prototype.EDITABLE = false;
 
@@ -98,7 +101,7 @@ Blockly.FieldImage.prototype.init = function() {
   }
   // Build the DOM.
   /** @type {SVGElement} */
-  this.fieldGroup_ = Blockly.utils.createSvgElement('g', {'aria-hidden':true},
+  this.fieldGroup_ = Blockly.utils.createSvgElement('g', {'aria-hidden': true},
       null);
   if (!this.visible_) {
     this.fieldGroup_.style.display = 'none';

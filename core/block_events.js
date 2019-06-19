@@ -97,6 +97,12 @@ Blockly.Events.Change = function(block, element, name, oldValue, newValue) {
   this.name = name;
   this.oldValue = oldValue;
   this.newValue = newValue;
+  if (this.element === 'field') {
+    Blockly.Events.disable();
+    block.setFieldValue(this.newValue, this.name);
+    Blockly.Events.enable();
+  }
+  block.updateLabel();
 };
 goog.inherits(Blockly.Events.Change, Blockly.Events.BlockBase);
 
@@ -186,7 +192,7 @@ Blockly.Events.Change.prototype.run = function(forward) {
       block.setCollapsed(value);
       break;
     case 'disabled':
-      block.setDisabled(value);
+      block.setEnabled(!value);
       break;
     case 'inline':
       block.setInputsInline(value);
@@ -443,6 +449,10 @@ Blockly.Events.Move.prototype.recordNew = function() {
   this.newParentId = location.parentId;
   this.newInputName = location.inputName;
   this.newCoordinate = location.coordinate;
+
+  var workspace = Blockly.Workspace.getById(this.workspaceId);
+  var block = workspace.getBlockById(this.blockId);
+  block.updateLabel();
 };
 
 /**

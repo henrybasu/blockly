@@ -67,6 +67,14 @@ Blockly.FieldAngle.fromJson = function(options) {
 };
 
 /**
+ * Serializable fields are saved by the XML renderer, non-serializable fields
+ * are not. Editable fields should also be serializable.
+ * @type {boolean}
+ * @const
+ */
+Blockly.FieldAngle.prototype.SERIALIZABLE = true;
+
+/**
  * Round angles to the nearest 15 degrees when using mouse.
  * Set to 0 to disable rounding.
  */
@@ -118,20 +126,12 @@ Blockly.FieldAngle.RADIUS = Blockly.FieldAngle.HALF - 1;
  * @private
  */
 Blockly.FieldAngle.prototype.render_ = function() {
-  if (!this.visible_) {
-    this.size_.width = 0;
-    return;
-  }
-
   // Update textElement.
   this.textElement_.textContent = this.getDisplayText_();
 
   // Insert degree symbol.
-  if (this.sourceBlock_.RTL) {
-    this.textElement_.insertBefore(this.symbol_, this.textElement_.firstChild);
-  } else {
-    this.textElement_.appendChild(this.symbol_);
-  }
+  // Degree symbol should be left of number, even in RTL (issue #2380).
+  this.textElement_.appendChild(this.symbol_);
   this.updateWidth();
 };
 
@@ -283,8 +283,6 @@ Blockly.FieldAngle.prototype.setText = function(text) {
     return;
   }
   this.updateGraph_();
-  // Cached width is obsolete.  Clear it.
-  this.size_.width = 0;
 };
 
 /**

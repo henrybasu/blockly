@@ -62,6 +62,14 @@ Blockly.FieldColour.fromJson = function(options) {
 };
 
 /**
+ * Serializable fields are saved by the XML renderer, non-serializable fields
+ * are not. Editable fields should also be serializable.
+ * @type {boolean}
+ * @const
+ */
+Blockly.FieldColour.prototype.SERIALIZABLE = true;
+
+/**
  * Default width of a colour field.
  * @type {number}
  * @private
@@ -120,9 +128,11 @@ Blockly.FieldColour.prototype.DROPDOWN_BACKGROUND_COLOUR = 'white';
  */
 Blockly.FieldColour.prototype.init = function() {
   Blockly.FieldColour.superClass_.init.call(this);
-  this.borderRect_.style['fillOpacity'] = 1;
   this.size_ = new goog.math.Size(Blockly.FieldColour.DEFAULT_WIDTH,
       Blockly.FieldColour.DEFAULT_HEIGHT);
+  this.borderRect_.style['fillOpacity'] = 1;
+  this.borderRect_.setAttribute('width',
+      this.size_.width + Blockly.BlockSvg.SEP_SPACE_X);
   this.setValue(this.getValue());
 };
 
@@ -140,36 +150,18 @@ Blockly.FieldColour.prototype.dispose = function() {
 };
 
 /**
+ * Colour fields are fixed with, no need to update.
+ */
+Blockly.FieldColour.prototype.updateWidth = function() {
+  // NOP
+};
+
+/**
  * Return the current colour.
  * @return {string} Current colour in '#rrggbb' format.
  */
 Blockly.FieldColour.prototype.getValue = function() {
   return this.colour_;
-};
-
-/**
- * Get the size, and rerender if necessary.
- * @return {!goog.math.Size} Height and width.
- */
-Blockly.FieldColour.prototype.getSize = function() {
-  if (!this.size_.width) {
-    this.render_();
-  }
-
-  return this.size_;
-};
-
-/**
- * Updates the width of the field.  Colour fields have a constant width, but
- * the width is sometimes reset to force a rerender.
- */
-Blockly.FieldColour.prototype.updateWidth = function() {
-  var width = Blockly.FieldColour.DEFAULT_WIDTH;
-  if (this.borderRect_) {
-    this.borderRect_.setAttribute('width',
-        width + Blockly.BlockSvg.SEP_SPACE_X);
-  }
-  this.size_.width = width;
 };
 
 /**

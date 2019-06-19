@@ -79,6 +79,14 @@ Blockly.FieldVariable.fromJson = function(options) {
 };
 
 /**
+ * Serializable fields are saved by the XML renderer, non-serializable fields
+ * are not. Editable fields should also be serializable.
+ * @type {boolean}
+ * @const
+ */
+Blockly.FieldVariable.prototype.SERIALIZABLE = true;
+
+/**
  * Initialize everything needed to render this field.  This includes making sure
  * that the field's value is valid.
  * @public
@@ -116,6 +124,37 @@ Blockly.FieldVariable.prototype.initModel = function() {
   } finally {
     Blockly.Events.enable();
   }
+};
+
+Blockly.FieldVariable.prototype.fromXml = function(fieldElement) {
+  var id = fieldElement.getAttribute('id');
+  var variableName = fieldElement.textContent;
+  var variableType = fieldElement.getAttribute('variabletype') || '';
+
+  var variable = Blockly.Variables.getOrCreateVariablePackage(
+      this.workspace_ || this.sourceBlock_.workspace, id,
+      variableName, variableType);
+
+  // This should never happen :)
+  if (variableType != null && variableType !== variable.type) {
+    throw Error('Serialized variable type with id \'' +
+      variable.getId() + '\' had type ' + variable.type + ', and ' +
+      'does not match variable field that references it: ' +
+      Blockly.Xml.domToText(fieldElement) + '.');
+  }
+
+  this.setValue(variable.getId());
+};
+
+Blockly.FieldVariable.prototype.toXml = function(fieldElement) {
+  // Make sure the variable is initialized.
+  this.initModel();
+
+  fieldElement.setAttribute('name', this.name);
+  fieldElement.setAttribute('id', this.variable_.getId());
+  fieldElement.textContent = this.variable_.name;
+  fieldElement.setAttribute('variableType', this.variable_.type);
+  return fieldElement;
 };
 
 /**

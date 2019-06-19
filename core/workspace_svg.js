@@ -30,6 +30,7 @@ goog.provide('Blockly.WorkspaceSvg');
 //goog.require('Blockly.BlockSvg');
 goog.require('Blockly.ConnectionDB');
 goog.require('Blockly.constants');
+goog.require('Blockly.CursorSvg');
 goog.require('Blockly.Events.BlockCreate');
 goog.require('Blockly.Gesture');
 goog.require('Blockly.Grid');
@@ -120,6 +121,12 @@ Blockly.WorkspaceSvg = function(options,
     this.registerToolboxCategoryCallback(Blockly.PROCEDURE_CATEGORY_NAME,
         Blockly.Procedures.flyoutCategory);
   }
+
+  /**
+   * The marker that shows where a user has marked while navigating blocks.
+   * @type {!Blockly.CursorSvg}
+   */
+  this.marker = this.createMarker();
 };
 goog.inherits(Blockly.WorkspaceSvg, Blockly.Workspace);
 
@@ -374,6 +381,22 @@ Blockly.WorkspaceSvg.prototype.inverseScreenCTM_ = null;
 Blockly.WorkspaceSvg.prototype.inverseScreenCTMDirty_ = true;
 
 /**
+ * Adds cursor for keyboard navigation.
+ * @return {!Blockly.CursorSvg} Cursor for keyboard navigation.
+ */
+Blockly.WorkspaceSvg.prototype.createCursor = function() {
+  return new Blockly.CursorSvg(this);
+};
+
+/**
+ * Adds marker for keyboard navigation.
+ * @return {!Blockly.CursorSvg} Marker for keyboard navigation.
+ */
+Blockly.WorkspaceSvg.prototype.createMarker = function() {
+  return new Blockly.CursorSvg(this, true);
+};
+
+/**
  * Getter for the inverted screen CTM.
  * @return {SVGMatrix} The matrix to use in mouseToSvg
  */
@@ -543,6 +566,12 @@ Blockly.WorkspaceSvg.prototype.createDom = function(opt_backgroundClass) {
     this.grid_.update(this.scale);
   }
   this.recordDeleteAreas();
+
+  var svgCursor = this.cursor.createDom();
+  this.svgGroup_.appendChild(svgCursor);
+
+  var svgMarker = this.marker.createDom();
+  this.svgGroup_.appendChild(svgMarker);
   return this.svgGroup_;
 };
 
@@ -582,6 +611,11 @@ Blockly.WorkspaceSvg.prototype.dispose = function() {
   if (this.zoomControls_) {
     this.zoomControls_.dispose();
     this.zoomControls_ = null;
+  }
+
+  if (this.cursor_) {
+    this.cursor_.dispose();
+    this.cursor_ = null;
   }
 
   if (this.audioManager_) {
@@ -1032,6 +1066,11 @@ Blockly.WorkspaceSvg.prototype.pasteBlock_ = function(xmlBlock) {
   Blockly.Events.disable();
   try {
     var block = Blockly.Xml.domToBlock(xmlBlock, this);
+    if (Blockly.Navigation.insertionConnection_) {
+      Blockly.Navigation.insertBlock(block, Blockly.Navigation.insertionConnection_);
+      return;
+    }
+
     // Move the duplicate to original position.
     var blockX = parseInt(xmlBlock.getAttribute('x'), 10);
     var blockY = parseInt(xmlBlock.getAttribute('y'), 10);
@@ -1744,6 +1783,38 @@ Blockly.WorkspaceSvg.prototype.zoomToFit = function() {
   var ratioY = workspaceHeight / blocksHeight;
   this.setScale(Math.min(ratioX, ratioY));
   this.scrollCenter();
+};
+
+/**
+ * Pan the workspace by a specified amount, keeping in the bounds.
+ * @param {number} x Offset X to scroll by in pixels.
+ * @param {number} y Offset Y to scroll by in pixels.
+ */
+Blockly.WorkspaceSvg.prototype.panByOffset = function(x, y) {
+  var x = this.scrollX - x;
+  var y = this.scrollY - y;
+  this.scroll(x, y);
+};
+
+/**
+ * Scroll the workspace by a specified amount, keeping in the bounds.
+ * TODO: Unit annotations
+ * @param {number} x Target X to scroll to.
+ * @param {number} y Target Y to scroll to.
+ */
+Blockly.WorkspaceSvg.prototype.scroll = function(x, y) {
+  var metrics = this.getMetrics();
+  x = Math.min(x, -metrics.contentLeft);
+  y = Math.min(y, -metrics.contentTop);
+  x = Math.max(x, metrics.viewWidth - metrics.contentLeft -
+               metrics.contentWidth);
+  y = Math.max(y, metrics.viewHeight - metrics.contentTop -
+               metrics.contentHeight);
+  // When the workspace starts scrolling, hide the WidgetDiv without animation.
+  // This is to prevent a dispoal animation from happening in the wrong location.
+  Blockly.WidgetDiv.hide(true);
+  // Move the scrollbars and the page will scroll automatically.
+  this.scrollbar.set(-x - metrics.contentLeft, -y - metrics.contentTop);
 };
 
 /**
