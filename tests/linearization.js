@@ -233,25 +233,27 @@ class Linearization {
       pNav.appendChild(cancelItem);
     }
 
-    var modeItem = document.createElement('b');
-    modeItem.appendChild(document.createTextNode('Mode: ' + this.mode));
-    modeItem.addEventListener('click', e => {
-      switch(this.mode) {
-        case this.SelectionMode.VIEW:
-          this.mode = this.SelectionMode.EDIT;
-          break;
-        case this.SelectionMode.EDIT:
-          this.mode = this.mutatable?
-              this.SelectionMode.MUTATE: this.SelectionMode.VIEW;
-          break;
-        case this.SelectionMode.MUTATE:
-          this.mode = this.SelectionMode.VIEW;
-          break;
-      }
-      this.generateList_();
-    });
-    pNav.appendChild(document.createElement('br'));
-    pNav.appendChild(modeItem);
+    if (this.selectedNode) { // must be view on workspace display
+      var modeItem = document.createElement('b');
+      modeItem.appendChild(document.createTextNode('Mode: ' + this.mode));
+      modeItem.addEventListener('click', e => {
+        switch(this.mode) {
+          case this.SelectionMode.VIEW:
+            this.mode = this.SelectionMode.EDIT;
+            break;
+          case this.SelectionMode.EDIT:
+            this.mode = this.mutatable?
+                this.SelectionMode.MUTATE: this.SelectionMode.VIEW;
+            break;
+          case this.SelectionMode.MUTATE:
+            this.mode = this.SelectionMode.VIEW;
+            break;
+        }
+        this.generateList_();
+      });
+      pNav.appendChild(document.createElement('br'));
+      pNav.appendChild(modeItem);
+    }
   }
 
 /**
