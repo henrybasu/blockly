@@ -236,8 +236,18 @@ class Linearization {
     var modeItem = document.createElement('b');
     modeItem.appendChild(document.createTextNode('Mode: ' + this.mode));
     modeItem.addEventListener('click', e => {
-      this.mode = this.mode === this.SelectionMode.VIEW?
-          this.SelectionMode.EDIT: this.SelectionMode.VIEW;
+      switch(this.mode) {
+        case this.SelectionMode.VIEW:
+          this.mode = this.SelectionMode.EDIT;
+          break;
+        case this.SelectionMode.EDIT:
+          this.mode = this.mutatable?
+              this.SelectionMode.MUTATE: this.SelectionMode.VIEW;
+          break;
+        case this.SelectionMode.MUTATE:
+          this.mode = this.SelectionMode.VIEW;
+          break;
+      }
       this.generateList_();
     });
     pNav.appendChild(document.createElement('br'));
@@ -308,7 +318,7 @@ class Linearization {
     }
 
     var inline = rootNode.getFirstInlineBlock();
-    if (inline) {
+    if (this.mode !== this.SelectionMode.MUTATE && inline) {
       var inlineSeq = inline.sequence(Linearization.nextInlineInput);
       inlineSeq.map(this.makeInputListElement_)
         .filter(n => n)
@@ -324,8 +334,13 @@ class Linearization {
       sublist.append(...this.makeAllInnerInputElements_(inNode));
     }
 
-    if (this.mode === this.SelectionMode.EDIT && rootNode.getLocation().mutator) {
-      sublist.append(...this.makeAllMutatorElements_(rootNode));
+    this.mutatable = Boolean(rootNode.getLocation().mutator);
+    if (this.mode === this.SelectionMode.MUTATE) {
+      if (this.mutatable) {
+        sublist.append(...this.makeAllMutatorElements_(rootNode));
+      } else {
+        this.mode = this.SelectionMode.VIEW;
+      }
     }
 
     var firstNested = rootNode.getFirstNestedBlock();
