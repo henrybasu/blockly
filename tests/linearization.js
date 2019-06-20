@@ -741,7 +741,7 @@ class Linearization {
     var lastIndex = marker.length - 1;
     var prefix = marker.slice(0, lastIndex);
     if (marker.charCodeAt(lastIndex) === 'Z'.charCodeAt(0)) {
-      return (prefix? nextStackMarker(prefix): 'A') + 'A';
+      return (prefix? this.nextStackMarker(prefix): 'A') + 'A';
     }
     return prefix + String.fromCharCode(marker.charCodeAt(lastIndex) + 1);
   }
