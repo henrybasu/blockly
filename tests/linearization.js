@@ -272,7 +272,7 @@ class Linearization {
       }
       // add a new list element representing the block to the list
       firstNode.sequence(n => n.getFirstSiblingBlock())
-        .map(this.makeListElement_)
+        .map(this.makeBasicListElement_)
         .forEach(node => stackItemList.appendChild(node));
 
       stackItem.appendChild(stackItemList);
@@ -301,9 +301,9 @@ class Linearization {
 
     var prevConn = rootNode.prev();
     if (this.mode === this.SelectionMode.EDIT && prevConn) {
-      sublist.appendChild(this.makeConnListItem_(rootNode, prevConn,
-          inlineOutputConn? 'Tack me on side of': 'Insert me below',
-          'Insert above me'));
+      // sublist.appendChild(this.makeConnListItem_(rootNode, prevConn,
+      //     inlineOutputConn? 'XX Tack me on side of': 'XX Insert me below',
+      //     'XX Insert above me'));
     }
 
     var inline = rootNode.getFirstInlineBlock();
@@ -330,15 +330,16 @@ class Linearization {
     var firstNested = rootNode.getFirstNestedBlock();
     if (firstNested) {
       firstNested.sequence(n => n.getFirstSiblingBlock())
-          .map(this.makeListElement_)
-          .forEach(elem => sublist.appendChild(elem));
+          .map(this.makeNodeListElements_)
+          .forEach(elems => sublist.append(...elems));
+      // if last child allows next connection
     }
 
     var nextConn = rootNode.next();
     if (this.mode === this.SelectionMode.EDIT && nextConn) {
-      sublist.appendChild(this.makeConnListItem_(rootNode, nextConn,
-        inlineOutputConn? 'Tack me on side of': 'Insert me above',
-        'Insert below me'));
+      // sublist.appendChild(this.makeConnListItem_(rootNode, nextConn,
+      //   inlineOutputConn? 'XX Tack me on side of': 'XX Insert me above',
+      //   'XX Insert below me'));
     }
 
     return sublist;
@@ -360,12 +361,12 @@ class Linearization {
       tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
       insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
     }
-    return inNodeSeq.map(n => this.makeBasicConnListItem_(
-          n,
-          n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
-              'Tack on side' + counter.tackText():
-              'Insert within' + counter.insertText())
-        );
+    var use = n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE;
+    if (!use) {
+      return [];
+    }
+    return inNodeSeq.map(
+      n => this.makeBasicConnListItem_(n, 'Insert within' + counter.insertText()));
   }
 
   /**
@@ -564,7 +565,7 @@ class Linearization {
             return this.makeEdittableFieldElement_(targetInputs[0]);
           }
           var targetBlockNode = node.in().next();
-          return this.makeListElement_(targetBlockNode);
+          return this.makeBasicListElement_(targetBlockNode);
         }
         return Linearization.makeListTextElement('add block inline');
       case Blockly.ASTNode.types.OUTPUT:
@@ -577,6 +578,26 @@ class Linearization {
     return null;
   }
 
+  makeNodeListElements_ = (node) => {
+    var list = [];
+    var displayConn = this.mode === this.SelectionMode.EDIT;
+    if (displayConn && node.prev().getType() === Blockly.ASTNode.types.PREVIOUS) {
+      var text = node.prev().prev().getType() === Blockly.ASTNode.types.NEXT?
+              'Insert between': 'Insert above';
+      list.push(this.makeBasicConnListItem_(node, text));
+    }
+
+    list.push(this.makeBasicListElement_(node));
+    var nextPrevConn = node.next().next();
+
+    if (displayConn && !nextPrevConn &&
+        node.next().getType() === Blockly.ASTNode.types.NEXT) {
+      list.push(this.makeBasicConnListItem_(node, 'Insert below'));
+    }
+
+    return list;
+  }
+
   /**
  * Creates and returns the standard ListElement for the block in node, labelled
  * with text equivalent to node.getLocation().makeAriaLabel().
@@ -586,7 +607,7 @@ class Linearization {
  * @return {HTMLElement} an linked html list item representation of node
  * @private
  */
-  makeListElement_ = (node) => {
+  makeBasicListElement_ = (node) => {
     var listElem = document.createElement('li');
     var block = node.getLocation();
     listElem.id = "li" + block.id;
