@@ -300,10 +300,10 @@ class Linearization {
 
 
     var prevConn = rootNode.prev();
-    if (this.mode === this.SelectionMode.EDIT && prevConn) {
-      // sublist.appendChild(this.makeConnListItem_(rootNode, prevConn,
-      //     inlineOutputConn? 'XX Tack me on side of': 'XX Insert me below',
-      //     'XX Insert above me'));
+    if (this.mode === this.SelectionMode.EDIT && prevConn && connNode) {
+      sublist.appendChild(this.makeConnListItem_(rootNode, prevConn,
+          inlineOutputConn? 'Tack me on side of': 'Insert me below',
+          'Insert above me'));
     }
 
     var inline = rootNode.getFirstInlineBlock();
@@ -314,33 +314,35 @@ class Linearization {
         .forEach(elem => sublist.appendChild(elem));
     }
 
+    if (this.mode === this.SelectionMode.EDIT && rootNode.getLocation().mutator) {
+      sublist.append(...this.makeAllMutatorElements_(rootNode));
+    }
+
     var inNode = rootNode.in();
     while (inNode && inNode.getType() !== Blockly.ASTNode.types.INPUT) {
       inNode = inNode.next();
     }
 
-    if (this.mode === this.SelectionMode.EDIT && !connNode && inNode) {
-      sublist.append(...this.makeAllInnerInputElements_(inNode));
-    }
-
-    if (this.mode === this.SelectionMode.EDIT && rootNode.getLocation().mutator) {
-      sublist.append(...this.makeAllMutatorElements_(rootNode));
-    }
+    // TODO: add back conns of type Blockly.ASTNode.types.INPUT
+    // if (this.mode === this.SelectionMode.EDIT && !connNode && inNode) {
+    //   sublist.append(...this.makeAllInnerInputElements_(inNode));
+    // }
 
     var firstNested = rootNode.getFirstNestedBlock();
     if (firstNested) {
       firstNested.sequence(n => n.getFirstSiblingBlock())
           .map(this.makeNodeListElements_)
           .forEach(elems => sublist.append(...elems));
-      // if last child allows next connection
+    } else if (this.mode === this.SelectionMode.EDIT && !connNode && inNode) {
+        sublist.append(...this.makeAllInnerInputElements_(inNode));
     }
 
-    var nextConn = rootNode.next();
-    if (this.mode === this.SelectionMode.EDIT && nextConn) {
-      // sublist.appendChild(this.makeConnListItem_(rootNode, nextConn,
-      //   inlineOutputConn? 'XX Tack me on side of': 'XX Insert me above',
-      //   'XX Insert below me'));
-    }
+    // var nextConn = rootNode.next();
+    // if (this.mode === this.SelectionMode.EDIT && nextConn) {
+    //   sublist.appendChild(this.makeConnListItem_(rootNode, nextConn,
+    //     inlineOutputConn? 'XX Tack me on side of': 'XX Insert me above',
+    //     'XX Insert below me'));
+    // }
 
     return sublist;
   }
@@ -354,19 +356,20 @@ class Linearization {
  * @private
  */
   makeAllInnerInputElements_ = (inNode) => {
-    var inNodeSeq = inNode.sequence(n => n.next()).filter(n => n);
+    var inNodeSeq = inNode.sequence(n => n.next());
     var counter = { // used mainly for if/elseif/else statements
       tackVal: 1,
       insertVal: 1,
       tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
       insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
     }
-    var use = n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE;
-    if (!use) {
-      return [];
-    }
-    return inNodeSeq.map(
-      n => this.makeBasicConnListItem_(n, 'Insert within' + counter.insertText()));
+
+    return inNodeSeq.map(n => this.makeBasicConnListItem_(
+              n,
+              n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
+                  'Tack on side' + counter.tackText():
+                  'Insert within' + counter.insertText())
+            );
   }
 
   /**
@@ -580,21 +583,27 @@ class Linearization {
     return null;
   }
 
+  // TODO: make documentation
   makeNodeListElements_ = (node) => {
     var list = [];
+
     var displayConn = this.mode === this.SelectionMode.EDIT;
-    if (displayConn && node.prev().getType() === Blockly.ASTNode.types.PREVIOUS) {
-      var text = node.prev().prev().getType() === Blockly.ASTNode.types.NEXT?
-              'Insert between': 'Insert above';
-      list.push(this.makeBasicConnListItem_(node, text));
+    var prevConn = node.prev();
+    var dispPrev = prevConn &&
+        (!prevConn.prev() || prevConn.prev().getType() !== Blockly.ASTNode.types.NEXT);
+    if (displayConn && dispPrev &&
+        node.prev().getType() === Blockly.ASTNode.types.PREVIOUS) {
+      list.push(this.makeBasicConnListItem_(node.prev(), 'Insert above'));
     }
 
     list.push(this.makeBasicListElement_(node));
-    var nextPrevConn = node.next().next();
 
-    if (displayConn && !nextPrevConn &&
+    if (displayConn && node.next() &&
         node.next().getType() === Blockly.ASTNode.types.NEXT) {
-      list.push(this.makeBasicConnListItem_(node, 'Insert below'));
+      var last = !node.next().next() ||
+          node.next().next().getType() !== Blockly.ASTNode.types.PREVIOUS;
+      var text = last? 'Insert below': 'Insert between';
+      list.push(this.makeBasicConnListItem_(node.next(), text));
     }
 
     return list;
