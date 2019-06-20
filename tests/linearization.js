@@ -117,8 +117,7 @@ class Linearization {
    */
   SelectionMode = {
     VIEW: 'View',
-    EDIT: 'Edit',
-    MUTATE: 'Mutate'
+    EDIT: 'Edit'
   }
 
   /**
@@ -285,7 +284,7 @@ class Linearization {
       }
       // add a new list element representing the block to the list
       firstNode.sequence(n => n.getFirstSiblingBlock())
-        .map(this.makeListElement_)
+        .map(this.makeBasicListElement_)
         .forEach(node => stackItemList.appendChild(node));
 
       stackItem.appendChild(stackItemList);
@@ -313,7 +312,7 @@ class Linearization {
 
 
     var prevConn = rootNode.prev();
-    if (this.mode === this.SelectionMode.EDIT && prevConn) {
+    if (this.mode === this.SelectionMode.EDIT && prevConn && connNode) {
       sublist.appendChild(this.makeConnListItem_(rootNode, prevConn,
           inlineOutputConn? 'Tack me on side of': 'Insert me below',
           'Insert above me'));
@@ -327,37 +326,35 @@ class Linearization {
         .forEach(elem => sublist.appendChild(elem));
     }
 
+    if (this.mode === this.SelectionMode.EDIT && rootNode.getLocation().mutator) {
+      sublist.append(...this.makeAllMutatorElements_(rootNode));
+    }
+
     var inNode = rootNode.in();
     while (inNode && inNode.getType() !== Blockly.ASTNode.types.INPUT) {
       inNode = inNode.next();
     }
 
-    if (this.mode === this.SelectionMode.EDIT && !connNode && inNode) {
-      sublist.append(...this.makeAllInnerInputElements_(inNode));
-    }
-
-    this.mutatable = Boolean(rootNode.getLocation().mutator);
-    if (this.mode === this.SelectionMode.MUTATE) {
-      if (this.mutatable) {
-        sublist.append(...this.makeAllMutatorElements_(rootNode));
-      } else {
-        this.mode = this.SelectionMode.VIEW;
-      }
-    }
+    // TODO: add back conns of type Blockly.ASTNode.types.INPUT
+    // if (this.mode === this.SelectionMode.EDIT && !connNode && inNode) {
+    //   sublist.append(...this.makeAllInnerInputElements_(inNode));
+    // }
 
     var firstNested = rootNode.getFirstNestedBlock();
     if (firstNested) {
       firstNested.sequence(n => n.getFirstSiblingBlock())
-          .map(this.makeListElement_)
-          .forEach(elem => sublist.appendChild(elem));
+          .map(this.makeNodeListElements_)
+          .forEach(elems => sublist.append(...elems));
+    } else if (this.mode === this.SelectionMode.EDIT && !connNode && inNode) {
+        sublist.append(...this.makeAllInnerInputElements_(inNode));
     }
 
-    var nextConn = rootNode.next();
-    if (this.mode === this.SelectionMode.EDIT && nextConn) {
-      sublist.appendChild(this.makeConnListItem_(rootNode, nextConn,
-        inlineOutputConn? 'Tack me on side of': 'Insert me above',
-        'Insert below me'));
-    }
+    // var nextConn = rootNode.next();
+    // if (this.mode === this.SelectionMode.EDIT && nextConn) {
+    //   sublist.appendChild(this.makeConnListItem_(rootNode, nextConn,
+    //     inlineOutputConn? 'XX Tack me on side of': 'XX Insert me above',
+    //     'XX Insert below me'));
+    // }
 
     return sublist;
   }
@@ -371,19 +368,20 @@ class Linearization {
  * @private
  */
   makeAllInnerInputElements_ = (inNode) => {
-    var inNodeSeq = inNode.sequence(n => n.next()).filter(n => n);
+    var inNodeSeq = inNode.sequence(n => n.next());
     var counter = { // used mainly for if/elseif/else statements
       tackVal: 1,
       insertVal: 1,
       tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
       insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
     }
+
     return inNodeSeq.map(n => this.makeBasicConnListItem_(
-          n,
-          n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
-              'Tack on side' + counter.tackText():
-              'Insert within' + counter.insertText())
-        );
+              n,
+              n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
+                  'Tack on side' + counter.tackText():
+                  'Insert within' + counter.insertText())
+            );
   }
 
   /**
@@ -458,7 +456,7 @@ class Linearization {
       }));
 
       block.arguments_.forEach(arg => {
-        elem = Linearization.makeListTextElement(
+        var elem = Linearization.makeListTextElement(
           'Argument \"' + arg + '\"');
         elem.contentEditable = true;
         elem.addEventListener('focus', (e) => elem.innerText = arg);
@@ -572,17 +570,19 @@ class Linearization {
       case Blockly.ASTNode.types.FIELD:
         if (location instanceof Blockly.FieldDropdown) {
           return this.makeDropdownElement_(location);
+        } else if (location instanceof Blockly.FieldNumber || location instanceof Blockly.FieldTextInput) {
+          return this.makeEdittableFieldElement_(location);
+        } else {
+          return Linearization.makeListTextElement('field but neither dropdown nor number');
         }
-        // non-dropdown field
-        return Linearization.makeListTextElement('field but not a dropdown');
       case Blockly.ASTNode.types.INPUT:
         if (location.targetConnection) {
           var targetInputs = location.targetConnection.getSourceBlock().inputList;
-          if (targetInputs.length === 1) {
+          if (targetInputs.length === 1 && (targetInputs[0].fieldRow[0] instanceof Blockly.FieldNumber)) {
             return this.makeEdittableFieldElement_(targetInputs[0]);
           }
           var targetBlockNode = node.in().next();
-          return this.makeListElement_(targetBlockNode);
+          return this.makeBasicListElement_(targetBlockNode);
         }
         return Linearization.makeListTextElement('add block inline');
       case Blockly.ASTNode.types.OUTPUT:
@@ -595,6 +595,32 @@ class Linearization {
     return null;
   }
 
+  // TODO: make documentation
+  makeNodeListElements_ = (node) => {
+    var list = [];
+
+    var displayConn = this.mode === this.SelectionMode.EDIT;
+    var prevConn = node.prev();
+    var dispPrev = prevConn &&
+        (!prevConn.prev() || prevConn.prev().getType() !== Blockly.ASTNode.types.NEXT);
+    if (displayConn && dispPrev &&
+        node.prev().getType() === Blockly.ASTNode.types.PREVIOUS) {
+      list.push(this.makeBasicConnListItem_(node.prev(), 'Insert above'));
+    }
+
+    list.push(this.makeBasicListElement_(node));
+
+    if (displayConn && node.next() &&
+        node.next().getType() === Blockly.ASTNode.types.NEXT) {
+      var last = !node.next().next() ||
+          node.next().next().getType() !== Blockly.ASTNode.types.PREVIOUS;
+      var text = last? 'Insert below': 'Insert between';
+      list.push(this.makeBasicConnListItem_(node.next(), text));
+    }
+
+    return list;
+  }
+
   /**
  * Creates and returns the standard ListElement for the block in node, labelled
  * with text equivalent to node.getLocation().makeAriaLabel().
@@ -604,7 +630,7 @@ class Linearization {
  * @return {HTMLElement} an linked html list item representation of node
  * @private
  */
-  makeListElement_ = (node) => {
+  makeBasicListElement_ = (node) => {
     var listElem = document.createElement('li');
     var block = node.getLocation();
     listElem.id = "li" + block.id;
@@ -618,32 +644,40 @@ class Linearization {
 
   /**
  * Creates and returns a textfield HTML li element linked to node's value.
- * @param {!Blockly.ASTNode} input the input containing the item to represent
+ * @param {!Blockly.ASTNode} node the node of type field or input containing the item to represent
  * @return {HTMLElement} an html list item that is edittable for number
  * and text fields.
  * @private
  */
-  makeEdittableFieldElement_ = (input) => {
+  makeEdittableFieldElement_ = (node) => {
     var listElem;
-    if (input.fieldRow.length === 1) {
-      var field = input.fieldRow[0];
-      if (field instanceof Blockly.FieldDropdown) {
-        return this.makeDropdownElement_(field)
-      }
-      var fieldName = field.name;
-      listElem = Linearization.makeListTextElement(field.getText());
-      listElem.id = "li" + field.getSourceBlock().id;
-      listElem.contentEditable = true;
-      listElem.addEventListener('keyup', (event) => {
-        event.preventDefault();
-        if (event.keyCode === 13) {
-          var block = this.workspace.getBlockById(listElem.id.slice(2));
-          block.setFieldValue(listElem.innerText, fieldName);
-        }
-      });
-    } else {
-      listElem = Linearization.makeListTextElement('more than 1 field');
+    try {
+      var field = node.fieldRow[0];
+    } catch {
+      var field = node;
     }
+    if (field instanceof Blockly.FieldDropdown) {
+      return this.makeDropdownElement_(field)
+    }
+    var fieldName = field.name;
+    if (field.getText() === "") {
+      listElem = Linearization.makeListTextElement('[Enter some text]');
+    } else {
+      listElem = Linearization.makeListTextElement(field.getText());
+    }
+    listElem.id = "li" + field.getSourceBlock().id;
+    listElem.contentEditable = true;
+    listElem.addEventListener('blur', function(event) {
+      var block = workspace.getBlockById(listElem.id.slice(2));
+      block.setFieldValue(listElem.innerText, fieldName);
+    });
+    listElem.addEventListener('keyup', (event) => {
+      event.preventDefault();
+      if (event.keyCode === 13) {
+        var block = this.workspace.getBlockById(listElem.id.slice(2));
+        block.setFieldValue(listElem.innerText, fieldName);
+      }
+    });
     return listElem;
   }
 
@@ -759,7 +793,7 @@ class Linearization {
     var lastIndex = marker.length - 1;
     var prefix = marker.slice(0, lastIndex);
     if (marker.charCodeAt(lastIndex) === 'Z'.charCodeAt(0)) {
-      return (prefix? nextStackMarker(prefix): 'A') + 'A';
+      return (prefix? this.nextStackMarker(prefix): 'A') + 'A';
     }
     return prefix + String.fromCharCode(marker.charCodeAt(lastIndex) + 1);
   }
