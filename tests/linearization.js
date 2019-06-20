@@ -629,13 +629,6 @@ class Linearization {
       var block = workspace.getBlockById(listElem.id.slice(2));
       block.setFieldValue(listElem.innerText, fieldName);
     });
-    listElem.addEventListener('keyup', (event) => {
-      event.preventDefault();
-      if (event.keyCode === 13) {
-        var block = this.workspace.getBlockById(listElem.id.slice(2));
-        block.setFieldValue(listElem.innerText, fieldName);
-      }
-    });
     return listElem;
   }
 
