@@ -117,8 +117,7 @@ class Linearization {
    */
   SelectionMode = {
     VIEW: 'View',
-    EDIT: 'Edit',
-    MUTATE: 'Mutate'
+    EDIT: 'Edit'
   }
 
   /**
