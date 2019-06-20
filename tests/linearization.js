@@ -441,7 +441,7 @@ class Linearization {
       }));
 
       block.arguments_.forEach(arg => {
-        elem = Linearization.makeListTextElement(
+        var elem = Linearization.makeListTextElement(
           'Argument \"' + arg + '\"');
         elem.contentEditable = true;
         elem.addEventListener('focus', (e) => elem.innerText = arg);
@@ -555,13 +555,15 @@ class Linearization {
       case Blockly.ASTNode.types.FIELD:
         if (location instanceof Blockly.FieldDropdown) {
           return this.makeDropdownElement_(location);
+        } else if (location instanceof Blockly.FieldNumber || location instanceof Blockly.FieldTextInput) {
+          return this.makeEdittableFieldElement_(location);
+        } else {
+          return Linearization.makeListTextElement('field but neither dropdown nor number');
         }
-        // non-dropdown field
-        return Linearization.makeListTextElement('field but not a dropdown');
       case Blockly.ASTNode.types.INPUT:
         if (location.targetConnection) {
           var targetInputs = location.targetConnection.getSourceBlock().inputList;
-          if (targetInputs.length === 1) {
+          if (targetInputs.length === 1 && (targetInputs[0].fieldRow[0] instanceof Blockly.FieldNumber)) {
             return this.makeEdittableFieldElement_(targetInputs[0]);
           }
           var targetBlockNode = node.in().next();
@@ -621,32 +623,33 @@ class Linearization {
 
   /**
  * Creates and returns a textfield HTML li element linked to node's value.
- * @param {!Blockly.ASTNode} input the input containing the item to represent
+ * @param {!Blockly.ASTNode} node the node of type field or input containing the item to represent
  * @return {HTMLElement} an html list item that is edittable for number
  * and text fields.
  * @private
  */
-  makeEdittableFieldElement_ = (input) => {
+  makeEdittableFieldElement_ = (node) => {
     var listElem;
-    if (input.fieldRow.length === 1) {
-      var field = input.fieldRow[0];
-      if (field instanceof Blockly.FieldDropdown) {
-        return this.makeDropdownElement_(field)
-      }
-      var fieldName = field.name;
-      listElem = Linearization.makeListTextElement(field.getText());
-      listElem.id = "li" + field.getSourceBlock().id;
-      listElem.contentEditable = true;
-      listElem.addEventListener('keyup', (event) => {
-        event.preventDefault();
-        if (event.keyCode === 13) {
-          var block = this.workspace.getBlockById(listElem.id.slice(2));
-          block.setFieldValue(listElem.innerText, fieldName);
-        }
-      });
-    } else {
-      listElem = Linearization.makeListTextElement('more than 1 field');
+    try {
+      var field = node.fieldRow[0];
+    } catch {
+      var field = node;
     }
+    if (field instanceof Blockly.FieldDropdown) {
+      return this.makeDropdownElement_(field)
+    }
+    var fieldName = field.name;
+    if (field.getText() === "") {
+      listElem = Linearization.makeListTextElement('[Enter some text]');
+    } else {
+      listElem = Linearization.makeListTextElement(field.getText());
+    }
+    listElem.id = "li" + field.getSourceBlock().id;
+    listElem.contentEditable = true;
+    listElem.addEventListener('blur', function(event) {
+      var block = workspace.getBlockById(listElem.id.slice(2));
+      block.setFieldValue(listElem.innerText, fieldName);
+    });
     return listElem;
   }
 
