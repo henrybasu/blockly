@@ -22,7 +22,7 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   this.parentNav = parentNav;
   this.mainNavList = mainNavList;
   this.blockJoiner = new Blockly.Linearization.BlockJoiner();
-  workspace.addChangeListener(this.generateList_.bind(this));
+  workspace.addChangeListener(e => this.generateList_(e));
 }
 
 /**
@@ -192,7 +192,7 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
     rootNode.getParentStack(true)
         .filter(node => node.getType() === Blockly.ASTNode.types.BLOCK)
         .reverse()
-        .map(this.makeParentItem_.bind(this))
+        .map(node => this.makeParentItem_(node))
         .forEach(elem => pNav.appendChild(elem));
   }
 
@@ -237,7 +237,7 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
     }
     // add a new list element representing the block to the list
     firstNode.sequence(n => n.getFirstSiblingBlock())
-      .map(this.makeNodeListElements_.bind(this))
+      .map(node => this.makeNodeListElements_(node))
       .forEach(items => stackItemList.append(...items));
 
     stackItem.appendChild(stackItemList);
@@ -273,8 +273,8 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
   var inline = rootNode.getFirstInlineBlock();
   if (inline) {
     var inlineSeq = inline.sequence(Blockly.Linearization.nextInlineInput);
-    inlineSeq.map(this.makeInputListElement_.bind(this))
-      .filter(n => n)
+    inlineSeq.map(node => this.makeInputListElement_(node))
+      .filter(Boolean)
       .forEach(elem => sublist.appendChild(elem));
   }
 
@@ -293,7 +293,7 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
     sublist.append(...this.makeIfListElements_(rootNode));
   } else if (firstNested) {
     firstNested.sequence(n => n.getFirstSiblingBlock())
-        .map(this.makeNodeListElements_.bind(this))
+        .map(node => this.makeNodeListElements_(node))
         .forEach(elems => sublist.append(...elems));
   } else if (!connNode && inNode) {
       sublist.append(...this.makeAllInnerInputElements_(inNode));
@@ -601,29 +601,46 @@ Blockly.Linearization.prototype.makeNodeListElements_ = function(node) {
   return list;
 }
 
+/**
+ * Returns an ordered Array of linked html list items that represent the
+ * list of branches on the if block the node contain
+ * @param {!Blockly.ASTNode} node the node containing an if block to represent
+ * @return {Array<HTMLElement>} the html representation of node and its branches
+ * @private
+ */
 Blockly.Linearization.prototype.makeIfListElements_ = function(node) {
   var list = [];
-  var inputs = node.getLocation().inputList;
+  const inputs = node.getLocation().inputList;
+  const children = node.in().sequence(n => n.next());
+  const blankText = 'blank', elseText = 'else ';
 
   for (var i = 0; i < inputs.length; i += 2) {
-    var cond, do_input, mode;
+    var cond, do_input, mode, doConnNode;
     if (i == inputs.length - 1) {
       do_input = inputs[i].connection.targetBlock();
-      mode = 'else ';
+      doConnNode = children[i];
+      mode = elseText;
     } else {
       cond = inputs[i].connection.targetBlock();
       do_input = inputs[i + 1].connection.targetBlock();
-      mode = (i > 0? 'else ': '') + 'if ';
+      doConnNode = children[i + 1];
+      mode = (i > 0? elseText: '') + 'if ';
     }
 
-    var text = mode + (mode === 'else '? '':(cond? cond.makeAriaLabel(): 'NOTHING'));
+    var text = mode;
+    if (mode !== elseText) {
+      text += cond? cond.makeAriaLabel(): blankText;
+      text += ' then';
+    }
+
     var bracketItem = Blockly.Linearization.makeListTextElement_(text);
     var bracketItemList = document.createElement('ul');
     bracketItem.appendChild(bracketItemList);
     list.push(bracketItem);
 
     if (!do_input) {
-      bracketItemList.appendChild(Blockly.Linearization.makeListTextElement_('NOTHING'));
+      bracketItemList.appendChild(
+        this.makeBasicConnListItem_(doConnNode, 'Insert within ' + text));
       continue;
     }
 
@@ -633,9 +650,10 @@ Blockly.Linearization.prototype.makeIfListElements_ = function(node) {
     }
 
     firstNode.sequence(n => n.getFirstSiblingBlock())
-      .map(this.makeNodeListElements_.bind(this))
+      .map(node => this.makeNodeListElements_(node))
       .forEach(items => bracketItemList.append(...items));
   }
+
   return list;
 }
 
@@ -802,10 +820,10 @@ Blockly.Linearization.prototype.clearHighlighted = function() {
  * @private
  */
 Blockly.Linearization.makeListTextElement_ = function(text) {
-    var listElem = document.createElement('li');
-    listElem.appendChild(document.createTextNode(text));
-    return listElem;
-  }
+  var listElem = document.createElement('li');
+  listElem.appendChild(document.createTextNode(text));
+  return listElem;
+}
 
 /**
  * Creates and returns the next label in lexicographic order, adding a letter in
