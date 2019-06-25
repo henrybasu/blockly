@@ -506,6 +506,7 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
   var connection = node.getLocation();
   item.id = "li" + connection.id;
   item.blockId = connection.id;
+  item.setAttribute('style', 'color:hsl(0, 0%, 0%)');
   item.addEventListener('click', e => {
     this.blockJoiner.push(node);
     this.selectedNode = null;
@@ -615,13 +616,15 @@ Blockly.Linearization.prototype.makeIfListElements_ = function(node) {
   const blankText = 'blank', elseText = 'else ';
 
   for (var i = 0; i < inputs.length; i += 2) {
-    var cond, do_input, mode, doConnNode;
+    var cond, do_input, mode, condConnNode, doConnNode;
     if (i == inputs.length - 1) {
       do_input = inputs[i].connection.targetBlock();
       doConnNode = children[i];
+      condConnNode = null;
       mode = elseText;
     } else {
       cond = inputs[i].connection.targetBlock();
+      condConnNode = children[i];
       do_input = inputs[i + 1].connection.targetBlock();
       doConnNode = children[i + 1];
       mode = (i > 0? elseText: '') + 'if ';
@@ -633,7 +636,14 @@ Blockly.Linearization.prototype.makeIfListElements_ = function(node) {
       text += ' then';
     }
 
-    var bracketItem = Blockly.Linearization.makeListTextElement_(text);
+    var bracketItem;
+    if (condConnNode && condConnNode.in() && condConnNode.in().next()) {
+      bracketItem = this.makeBasicListElement_(condConnNode.in().next());
+      bracketItem.innerHTML = text;
+    } else {
+      bracketItem = Blockly.Linearization.makeListTextElement_(text);
+    }
+
     var bracketItemList = document.createElement('ul');
     bracketItem.appendChild(bracketItemList);
     list.push(bracketItem);
@@ -820,10 +830,10 @@ Blockly.Linearization.prototype.clearHighlighted = function() {
  * @private
  */
 Blockly.Linearization.makeListTextElement_ = function(text) {
-  var listElem = document.createElement('li');
-  listElem.appendChild(document.createTextNode(text));
-  return listElem;
-}
+    var listElem = document.createElement('li');
+    listElem.appendChild(document.createTextNode(text));
+    return listElem;
+  }
 
 /**
  * Creates and returns the next label in lexicographic order, adding a letter in
