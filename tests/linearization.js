@@ -80,15 +80,25 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
   }
 
   // Get the previous connection, disallow fields
-  var previous = advance(insertPointNode);
-  if (previous && previous.getType() === Blockly.ASTNode.types.FIELD) {
-    previous = null;
-  }
+  // var previous = advance(insertPointNode);
+  // if (previous && previous.getType() === Blockly.ASTNode.types.FIELD) {
+  //   previous = null;
+  // }
 
   // connect this.blockNode and this.connectionNode
   var provided = this.blockNode;
   var providedBlock = back(provided).getLocation();
-  var suturePointNode = advance(provided);
+  // var suturePointNode = advance(provided);
+
+  try {
+    var detach = [Blockly.ASTNode.types.PREVIOUS, Blockly.ASTNode.types.OUTPUT];
+    if (provided.prev() && detach.includes(provided.prev().getType())) {
+      provided.prev().getLocation().disconnect();
+    }
+  } catch (e) {
+    console.log(e);
+  }
+
   try {
     insertPointNode.getLocation().connect(providedBlock);
   } catch (e) {
@@ -97,10 +107,23 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
       document.location.reload();
     }
   }
-
+  provided.getLocation().bumpNeighbours_();
   // clear the values
   this.connectionNode = null;
   this.blockNode = null;
+}
+
+Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
+  if (!this.blockNode) {
+    return;
+  }
+
+  try {
+    this.blockNode.prev().getLocation().disconnect();
+    this.blockNode = null;
+  } catch (e) {
+    console.log(e);
+  }
 }
 
 /**
@@ -215,7 +238,8 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
         .forEach(elem => pNav.appendChild(elem));
   }
 
-  if (this.blockJoiner.connectionNode || this.blockJoiner.blockNode) {
+  var blockNode = this.blockJoiner.blockNode;
+  if (this.blockJoiner.connectionNode || blockNode) {
     pNav.appendChild(document.createElement('br'));
     var cancelItem = document.createElement('b');
     cancelItem.appendChild(document.createTextNode('Cancel Move'));
@@ -228,6 +252,25 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
         this.generateList_();
     });
     pNav.appendChild(cancelItem);
+  }
+
+  if (blockNode && !this.selectedNode) {
+    pNav.appendChild(document.createElement('br'));
+    var deleteItem = document.createElement('b');
+    var text = 'Delete ' + blockNode.getLocation().makeAriaLabel();
+    deleteItem.appendChild(document.createTextNode(text));
+    deleteItem.addEventListener('click', e => {
+      this.blockJoiner.blockNode = null;
+      blockNode.getLocation().dispose(true);
+    })
+    pNav.appendChild(deleteItem);
+    pNav.appendChild(document.createElement('br'));
+    var newStackItem = document.createElement('b');
+    newStackItem.appendChild(document.createTextNode('Start new stack'));
+    newStackItem.addEventListener('click', e => {
+      this.blockJoiner.disconnectBlock();
+    });
+    pNav.appendChild(newStackItem);
   }
 }
 
@@ -666,6 +709,10 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
     var bracketItem;
     if (condConnNode && condConnNode.in() && condConnNode.in().next()) {
       bracketItem = this.makeBasicListItem_(condConnNode.in().next());
+      bracketItem.innerHTML = text;
+      console.log(bracketItem);
+    } else if (condConnNode) {
+      bracketItem = this.makeBasicConnListItem_(condConnNode);
       bracketItem.innerHTML = text;
     } else {
       bracketItem = Blockly.Linearization.makeListTextItem_(text);
