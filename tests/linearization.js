@@ -288,7 +288,7 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
   var marker = 'A';
   firstStack.sequence(n => n.next()).forEach(stackNode => {
     var stackItem = document.createElement('li'); 
-    var stackElem = Blockly.Linearization.makeListTextElement_(
+    var stackElem = Blockly.Linearization.makeListTextItem_(
         'Stack ' + marker);
     stackElem.contentEditable = true;
     stackElem.addEventListener('focus', (e) => {
@@ -339,7 +339,7 @@ Blockly.Linearization.prototype.drawListForBlock = function(blockNode, rootBlock
     && !(block.outputConnection && block.getParent())
     && block.getRootBlock() === rootBlock) {   
 
-    var listElem = this.makeBasicListElement_(blockNode);
+    var listElem = this.makeBasicListItem_(blockNode);
     if (block.getSurroundParent()) {
       listElem.setAttribute('aria-label', listElem.innerHTML 
         + ', inside ' + this.getNestingBlockName(block.getSurroundParent()));
@@ -355,7 +355,7 @@ Blockly.Linearization.prototype.drawListForBlock = function(blockNode, rootBlock
     stackItemList.append(nestedItemList);
   }
   if (this.getNestingBlockName(block)) {
-    var endElem = Blockly.Linearization.makeListTextElement_('end ' + this.getNestingBlockName(block));
+    var endElem = Blockly.Linearization.makeListTextItem_('end ' + this.getNestingBlockName(block));
     stackItemList.append(endElem);
   }
 }
@@ -847,7 +847,7 @@ Blockly.Linearization.prototype.makeBasicListItem_ = function(node) {
  * and text fields.
  * @private
  */
-Blockly.Linearization.prototype.makeEdittableFieldItem_ = function(node) {
+Blockly.Linearization.prototype.makeEdittableFieldItem_ = function(nodeLocation) {
   var listElem;
   try {
     var field = nodeLocation.fieldRow[0];
