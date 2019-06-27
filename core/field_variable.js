@@ -135,7 +135,7 @@ Blockly.FieldVariable.prototype.fromXml = function(fieldElement) {
       this.workspace_ || this.sourceBlock_.workspace, id,
       variableName, variableType);
 
-  // // This should never happen :)
+  // This should never happen :) (but it does in tests/playground.html so we commented it out)
   // if (variableType != null && variableType !== variable.type) {
   //   throw Error('Serialized variable type with id \'' +
   //     variable.getId() + '\' had type ' + variable.type + ', and ' +

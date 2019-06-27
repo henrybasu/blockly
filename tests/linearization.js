@@ -79,20 +79,14 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
       return;
   }
 
-  // Get the previous connection, disallow fields
-  // var previous = advance(insertPointNode);
-  // if (previous && previous.getType() === Blockly.ASTNode.types.FIELD) {
-  //   previous = null;
-  // }
-
   // connect this.blockNode and this.connectionNode
   var provided = this.blockNode;
   var providedBlock = back(provided).getLocation();
-  // var suturePointNode = advance(provided);
 
   try {
     var detach = [Blockly.ASTNode.types.PREVIOUS, Blockly.ASTNode.types.OUTPUT];
-    if (provided.prev() && detach.includes(provided.prev().getType())) {
+    if (provided.prev() && provided.prev().prev()
+        && detach.includes(provided.prev().getType())) {
       provided.prev().getLocation().disconnect();
     }
   } catch (e) {
@@ -102,11 +96,11 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
   try {
     insertPointNode.getLocation().connect(providedBlock);
   } catch (e) {
+    console.warn(e);
     if (e instanceof DOMException) {
       document.location.reload();
     }
   }
-  provided.getLocation().bumpNeighbours_();
   // clear the values
   this.connectionNode = null;
   this.blockNode = null;
@@ -231,6 +225,8 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
         .forEach(elem => pNav.appendChild(elem));
   }
 
+  // add movement options...
+  // ...cancel move item...
   var blockNode = this.blockJoiner.blockNode;
   if (this.blockJoiner.connectionNode || blockNode) {
     pNav.appendChild(document.createElement('br'));
@@ -247,6 +243,7 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
     pNav.appendChild(cancelItem);
   }
 
+  // ...delete block item...
   if (blockNode && !this.selectedNode) {
     pNav.appendChild(document.createElement('br'));
     var deleteItem = document.createElement('b');
@@ -257,8 +254,9 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
       blockNode.getLocation().dispose(true);
     })
 
-    // if this has the ability to be mid-stack (unlike hat blocks)
+    // ...make into new stack item
     if (blockNode.prev()) {
+      // if this has the ability to be mid-stack (unlike hat blocks)
       pNav.appendChild(deleteItem);
       pNav.appendChild(document.createElement('br'));
       var newStackItem = document.createElement('b');
@@ -285,63 +283,107 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
 
   // for each stack
   var firstStack = wsNode.in();
-  var marker = 'A';
-  firstStack.sequence(n => n.next()).forEach(stackNode => {
-    var stackItem = document.createElement('li'); 
-    var stackElem = Blockly.Linearization.makeListTextItem_(
-        'Stack ' + marker);
-    stackElem.contentEditable = true;
-    stackElem.addEventListener('focus', (e) => {
-      var oldName = stackElem.innerText.slice(6);
-      stackElem.innerText = oldName;
-    });
-    stackElem.addEventListener('blur', (e) => {
-      if (stackElem.innerText === "") {
-        stackElem.innerText = 'Stack ' + oldName;
-      } else {
-        var newName = stackElem.innerText;
-        stackElem.innerText = 'Stack ' + newName;
-      }
-    });
-    stackItem.appendChild(stackElem);
-    marker = Blockly.Linearization.nextStackMarker(marker);
-    var stackItemList = document.createElement('ul');
-    // stackItemList.setAttribute('style', 'list-style-type:none;');
+  var stacks = firstStack.sequence(n => n.next());
+  this.marker = 'A';
 
+  // is in move mode? partial: full;
+  var mappingFn = this.blockJoiner.blockNode?
+      stack => this.makePartialStackItem_(stack):
+      stack => this.makeFullStackItem_(stack);
 
-    // first block in stack
-    var blockNode = stackNode.in();
-    if (blockNode.getType() !== Blockly.ASTNode.types.BLOCK) {
-      blockNode = blockNode.getFirstSiblingBlock();
-    }
-    var rootBlock = blockNode.getLocation();
-    var endList = [];
-    blockNode.sequence(n => n.getFirstSiblingBlock())
-      .map(node => this.drawListForBlock(node, rootBlock, stackItemList));
-
-    stackItem.appendChild(stackItemList);
-    wsList.appendChild(stackItem);
-  });
+  stacks.map(mappingFn)
+    .forEach(item => wsList.append(item));
 
   return wsList;
 }
 
 /**
-* Takes in a block node and recursively makes the list of elements for all descendant blocks. 
-* Excludes inline blocks, such as those found in the repeat x times block.
-* @param {Blockly.ASTNode} blockNode the block AST node to start from
-* @param {Blockly.Block} rootBlock the block at which blockNode points to
-* @param {HTMLElement} the HTML list to add the list elements to
-*/
-Blockly.Linearization.prototype.drawListForBlock = function(blockNode, rootBlock, stackItemList) {
+ * Generates the stack item that contains all the top-level information
+ * as well as movement options for the provided stack. Designed for use during
+ * move operations
+ * @param {!Blockly.ASTNode} stack the stack to represent
+ * @return {HTMLElement} a list element describing the top-level of the stack as
+ * a color-coded, linked sublist
+ */
+Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
+  var stackItem = document.createElement('li');
+  stackItem.appendChild(document.createTextNode('Stack ' + this.marker));
+  this.marker = Blockly.Linearization.nextStackMarker(this.marker);
+  var stackItemList = document.createElement('ul');
+
+  // for each block node in the top of the stack
+  var firstNode = stack.in();
+  if (firstNode.getType() !== Blockly.ASTNode.types.BLOCK) {
+    firstNode = firstNode.getFirstSiblingBlock();
+  }
+
+  // add a new list element representing the block to the list
+  firstNode.sequence(n => n.getFirstSiblingBlock())
+    .map(node => this.makeNodeListItems_(node))
+    .forEach(items => stackItemList.append(...items));
+
+  stackItem.appendChild(stackItemList);
+  return stackItem;
+}
+
+/**
+ * Generates the html li that contains listings for all items in the stack
+ * @param {!Blockly.ASTNode} stack the stack to represent
+ * @return {HTMLElement} a list element describing the complete stack as
+ * a color-coded, linked sublist
+ */
+Blockly.Linearization.prototype.makeFullStackItem_ = function (stackNode) {
+  var stackItem = document.createElement('li');
+  var stackElem =
+      Blockly.Linearization.makeListTextItem_('Stack ' + this.marker);
+  stackElem.contentEditable = true;
+  stackElem.addEventListener('focus', (e) => {
+    var oldName = stackElem.innerText.slice(6);
+    stackElem.innerText = oldName;
+  });
+  stackElem.addEventListener('blur', (e) => {
+    if (stackElem.innerText === "") {
+      stackElem.innerText = 'Stack ' + oldName;
+    } else {
+      var newName = stackElem.innerText;
+      stackElem.innerText = 'Stack ' + newName;
+    }
+  });
+  stackItem.appendChild(stackElem);
+  this.marker = Blockly.Linearization.nextStackMarker(this.marker);
+  var stackItemList = document.createElement('ul');
+
+  // first block in stack
+  var blockNode = stackNode.in();
+  if (blockNode.getType() !== Blockly.ASTNode.types.BLOCK) {
+    blockNode = blockNode.getFirstSiblingBlock();
+  }
+  var rootBlock = blockNode.getLocation();
+  blockNode.sequence(n => n.getFirstSiblingBlock())
+    .map(node => this.drawListForBlock(node, rootBlock, stackItemList));
+
+  stackItem.appendChild(stackItemList);
+  return stackItem;
+}
+/**
+ * Takes in a block node and recursively makes the list of elements for all
+ * descendant blocks.
+ * Excludes inline blocks, such as those found in the repeat x times block.
+ * @param {Blockly.ASTNode} blockNode the block AST node to start from
+ * @param {Blockly.Block} rootBlock the block at which blockNode points to
+ * @param stackItemList TODO: fill me in
+ * @param {HTMLElement} the HTML list to add the list elements to
+ */
+Blockly.Linearization.prototype.drawListForBlock = function(blockNode,
+    rootBlock, stackItemList) {
   var block = blockNode.getLocation();
   if (blockNode.getType() === Blockly.ASTNode.types.BLOCK
     && !(block.outputConnection && block.getParent())
-    && block.getRootBlock() === rootBlock) {   
+    && block.getRootBlock() === rootBlock) {
 
     var listElem = this.makeBasicListItem_(blockNode);
     if (block.getSurroundParent()) {
-      listElem.setAttribute('aria-label', listElem.innerHTML 
+      listElem.setAttribute('aria-label', listElem.innerHTML
         + ', inside ' + this.getNestingBlockName(block.getSurroundParent()));
     }
     stackItemList.append(listElem);
@@ -355,16 +397,18 @@ Blockly.Linearization.prototype.drawListForBlock = function(blockNode, rootBlock
     stackItemList.append(nestedItemList);
   }
   if (this.getNestingBlockName(block)) {
-    var endElem = Blockly.Linearization.makeListTextItem_('end ' + this.getNestingBlockName(block));
+    var endElem = Blockly.Linearization.makeListTextItem_(
+        'end ' + this.getNestingBlockName(block));
     stackItemList.append(endElem);
   }
 }
 
 /**
-* Takes in a nesting block (e.g. if, repeat while, etc.) and returns a shorthand human-readable identifier.
-* @param {Blockly.Block} block the block to find a name for
-* @return {string} readable identifier for the nesting block
-*/
+ * Takes in a nesting block (e.g. if, repeat while, etc.) and returns a
+ * shorthand human-readable identifier.
+ * @param {Blockly.Block} block the block to find a name for
+ * @return {string} readable identifier for the nesting block
+ */
 Blockly.Linearization.prototype.getNestingBlockName = function(block) {
   // TODO: localization
   var blockNames = {
@@ -376,15 +420,14 @@ Blockly.Linearization.prototype.getNestingBlockName = function(block) {
     'procedures_defreturn': 'function',
     'controls_whileUntil': 'repeat while'
   }
-  if ((block.type === 'controls_whileUntil' && block.inputList[0].fieldRow[1].getText() === 'until')) {
+  if ((block.type === 'controls_whileUntil'
+      && block.inputList[0].fieldRow[1].getText() === 'until')) {
     blockNames['controls_whileUntil'] = 'repeat until';
   }
   if (blockNames[block.type]) {
     return blockNames[block.type];
-  } else {
-    return null;
   }
-
+  return null;
 }
   /**
  * Creates and returns the HTML unordered list of every block on the same visual
@@ -398,6 +441,12 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
   var sublist = document.createElement('ul');
   sublist.appendChild(this.makeGoBackItem_(rootNode));
   sublist.appendChild(this.makeMoveItem_(rootNode));
+
+  var warning = rootNode.getLocation().warning;
+  if (warning && warning.getText && warning.getText().length) {
+    sublist.appendChild(
+      Blockly.Linearization.makeListTextItem_(warning.getText()));
+  }
 
   var connNode = this.blockJoiner.connectionNode;
   var inlineOutputConn = connNode && connNode.getParentInput() &&
@@ -439,13 +488,6 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
       sublist.append(...this.makeAllInnerInputItems_(inNode));
   }
 
-  // var nextConn = rootNode.next();
-  // if (this.mode === this.SelectionMode.EDIT && nextConn) {
-  //   sublist.appendChild(this.makeConnListItem_(rootNode, nextConn,
-  //     inlineOutputConn? 'XX Tack me on side of': 'XX Insert me above',
-  //     'XX Insert below me'));
-  // }
-
   return sublist;
 }
 
@@ -468,10 +510,10 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
     tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
     insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
   }
-
+  var parentInput = n.getParentInput();
   return inNodeSeq.map(n => this.makeBasicConnListItem_(
             n,
-            n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
+            parentInput && parentInput.type === Blockly.INPUT_VALUE?
                 'Tack on side' + counter.tackText():
                 'Insert within' + counter.insertText())
           );
@@ -586,7 +628,8 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
  * by rootNode and text, with onclick behavior innerFn(rootNode.getLocation())
  * @private
  */
-Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text, innerFn) {
+Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text,
+    innerFn) {
   var block = rootNode.getLocation();
   var elem = Blockly.Linearization.makeListTextItem_(text);
   elem.addEventListener('click', e => {
@@ -611,7 +654,8 @@ Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text, 
  * potential connection
  * @private
  */
-Blockly.Linearization.prototype.makeConnListItem_ = function(rootNode, candidate, text, alttext) {
+Blockly.Linearization.prototype.makeConnListItem_ = function(rootNode,
+    candidate, text, alttext) {
   var connNode = this.blockJoiner.connectionNode;
   if (!connNode) {
       return this.makeBasicConnListItem_(candidate, alttext);
@@ -665,6 +709,9 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
 Blockly.Linearization.prototype.makeParentItem_ = function(node=undefined) {
   var item = document.createElement('b');
   var labelText = Blockly.Linearization.getNodeLabel(node);
+  if (!node) {
+    labelText += this.blockJoiner.blockNode? ' (move mode)': ' (summary)';
+  }
   item.appendChild(document.createTextNode(labelText + ' > '));
   if (node) {
     item.setAttribute('style',
@@ -687,16 +734,19 @@ Blockly.Linearization.prototype.makeInputListItem_ = function(node) {
     case Blockly.ASTNode.types.FIELD:
       if (location instanceof Blockly.FieldDropdown) {
         return this.makeDropdownItem_(location);
-      } else if (location instanceof Blockly.FieldNumber || location instanceof Blockly.FieldTextInput) {
-        return this.makeEdittableFieldItem_(location);
-      } else {
-        return Blockly.Linearization.makeListTextItem_('field but neither dropdown nor number');
       }
+      if (location instanceof Blockly.FieldNumber
+          || location instanceof Blockly.FieldTextInput) {
+        return this.makeEditableFieldItem_(location);
+      }
+      var fallthroughText = 'field but neither dropdown nor number';
+      return Blockly.Linearization.makeListTextItem_(fallthroughText);
     case Blockly.ASTNode.types.INPUT:
       if (location.targetConnection) {
         var targetInputs = location.targetConnection.getSourceBlock().inputList;
-        if (targetInputs.length === 1 && (targetInputs[0].fieldRow[0] instanceof Blockly.FieldNumber)) {
-          return this.makeEdittableFieldItem_(targetInputs[0]);
+        if (targetInputs.length === 1 &&
+            (targetInputs[0].fieldRow[0] instanceof Blockly.FieldNumber)) {
+          return this.makeEditableFieldItem_(targetInputs[0]);
         }
         var targetBlockNode = node.in().next();
         return this.makeBasicListItem_(targetBlockNode);
@@ -726,7 +776,8 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
   var dispPrev = prevConn && !prevConn.prev();
   if (disp && dispPrev) {
     try {
-      prevConn.getLocation().checkConnection_(this.blockJoiner.blockNode.next().getLocation());
+      prevConn.getLocation().checkConnection_(
+        this.blockJoiner.blockNode.next().getLocation());
       list.push(this.makeBasicConnListItem_(prevConn, 'Insert above'));
     } catch (e) { /* invalid connection point */ }
   }
@@ -736,7 +787,8 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
   var nextConn = node.next();
   if (disp && nextConn) {
     try {
-      nextConn.getLocation().checkConnection_(this.blockJoiner.blockNode.prev().getLocation());
+      nextConn.getLocation().checkConnection_(
+        this.blockJoiner.blockNode.prev().getLocation());
       var last = !nextConn.next() ||
           nextConn.next().getType() !== Blockly.ASTNode.types.PREVIOUS;
       var text = last? 'Insert below': 'Insert between';
@@ -842,17 +894,17 @@ Blockly.Linearization.prototype.makeBasicListItem_ = function(node) {
 
 /**
  * Creates and returns a textfield HTML li element linked to node's value.
- * @param {!Blockly.ASTNode} nodeLocation the field or input to represent
+ * @param {!Blockly.ASTNode} node the field or input to represent
  * @return {HTMLElement} an html list item that is edittable for number
  * and text fields.
  * @private
  */
-Blockly.Linearization.prototype.makeEdittableFieldItem_ = function(nodeLocation) {
+Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
   var listElem;
   try {
-    var field = nodeLocation.fieldRow[0];
+    var field = node.fieldRow[0];
   } catch {
-    var field = nodeLocation;
+    var field = node;
   }
   if (field instanceof Blockly.FieldDropdown) {
     return this.makeDropdownItem_(field)
@@ -892,8 +944,8 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
   }
 
 
-  const makeOptObj = (option) => {return {label: option[0], value: option[1]}};
-  const makeEntryObj = (i) => {return {i: i, option: makeOptObj(options[i])}};
+  const makeOptObj = (option) => ({label: option[0], value: option[1]});
+  const makeEntryObj = (i) => ({i: i, option: makeOptObj(options[i])});
 
   var entry = makeEntryObj(0);
   for (var i = 0, option; option = options[i]; i++) {
