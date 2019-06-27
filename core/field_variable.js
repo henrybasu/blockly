@@ -135,13 +135,13 @@ Blockly.FieldVariable.prototype.fromXml = function(fieldElement) {
       this.workspace_ || this.sourceBlock_.workspace, id,
       variableName, variableType);
 
-  // This should never happen :)
-  if (variableType != null && variableType !== variable.type) {
-    throw Error('Serialized variable type with id \'' +
-      variable.getId() + '\' had type ' + variable.type + ', and ' +
-      'does not match variable field that references it: ' +
-      Blockly.Xml.domToText(fieldElement) + '.');
-  }
+  // // This should never happen :)
+  // if (variableType != null && variableType !== variable.type) {
+  //   throw Error('Serialized variable type with id \'' +
+  //     variable.getId() + '\' had type ' + variable.type + ', and ' +
+  //     'does not match variable field that references it: ' +
+  //     Blockly.Xml.domToText(fieldElement) + '.');
+  // }
 
   this.setValue(variable.getId());
 };

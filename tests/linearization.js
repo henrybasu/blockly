@@ -211,7 +211,6 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
 /**
  * Creates and returns the HTML unordered list of labelled stacks with sublists
  * of every block on the same visual indent, represented with list elements
- * @param {!Blockly.Workspace} Current workspace
  * @return {HTMLElement} an html representation of the top level of the current
  * workspace, in the form of an unordered list.
  * @private
@@ -224,21 +223,38 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
   // for each stack
   var firstStack = wsNode.in();
   var marker = 'A';
-  firstStack.sequence(n => n.next()).forEach(stack => {
-    var stackItem = document.createElement('li');
-    stackItem.appendChild(document.createTextNode('Stack ' + marker));
+  firstStack.sequence(n => n.next()).forEach(stackNode => {
+    var stackItem = document.createElement('li'); 
+    var stackElem = Blockly.Linearization.makeListTextElement_(
+        'Stack ' + marker);
+    stackElem.contentEditable = true;
+    stackElem.addEventListener('focus', (e) => {
+      var oldName = stackElem.innerText.slice(6);
+      stackElem.innerText = oldName;
+    });
+    stackElem.addEventListener('blur', (e) => {
+      if (stackElem.innerText === "") {
+        stackElem.innerText = 'Stack ' + oldName;
+      } else {
+        var newName = stackElem.innerText;
+        stackElem.innerText = 'Stack ' + newName;
+      }
+    });
+    stackItem.appendChild(stackElem);
     marker = Blockly.Linearization.nextStackMarker(marker);
     var stackItemList = document.createElement('ul');
+    // stackItemList.setAttribute('style', 'list-style-type:none;');
 
-    // for each block node in the top of the stack
-    var firstNode = stack.in();
-    if (firstNode.getType() !== Blockly.ASTNode.types.BLOCK) {
-      firstNode = firstNode.getFirstSiblingBlock();
+
+    // first block in stack
+    var blockNode = stackNode.in();
+    if (blockNode.getType() !== Blockly.ASTNode.types.BLOCK) {
+      blockNode = blockNode.getFirstSiblingBlock();
     }
-    // add a new list element representing the block to the list
-    firstNode.sequence(n => n.getFirstSiblingBlock())
-      .map(node => this.makeNodeListElements_(node))
-      .forEach(items => stackItemList.append(...items));
+    var rootBlock = blockNode.getLocation();
+    var endList = [];
+    blockNode.sequence(n => n.getFirstSiblingBlock())
+      .map(node => this.drawListForBlock(node, rootBlock, stackItemList));
 
     stackItem.appendChild(stackItemList);
     wsList.appendChild(stackItem);
@@ -247,6 +263,66 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
   return wsList;
 }
 
+/**
+* Takes in a block node and recursively makes the list of elements for all descendant blocks. 
+* Excludes inline blocks, such as those found in the repeat x times block.
+* @param {Blockly.ASTNode} blockNode the block AST node to start from
+* @param {Blockly.Block} rootBlock the block at which blockNode points to
+* @param {HTMLElement} the HTML list to add the list elements to
+*/
+Blockly.Linearization.prototype.drawListForBlock = function(blockNode, rootBlock, stackItemList) {
+  var block = blockNode.getLocation();
+  if (blockNode.getType() === Blockly.ASTNode.types.BLOCK
+    && !(block.outputConnection && block.getParent())
+    && block.getRootBlock() === rootBlock) {   
+
+    var listElem = this.makeBasicListElement_(blockNode);
+    if (block.getSurroundParent()) {
+      listElem.setAttribute('aria-label', listElem.innerHTML 
+        + ', inside ' + this.getNestingBlockName(block.getSurroundParent()));
+    }
+    stackItemList.append(listElem);
+  }
+
+  if (blockNode.getFirstNestedBlock()) {
+    var nestedItemList = document.createElement('ul');
+    // nestedItemList.setAttribute('style', 'list-style-type:none;');
+    blockNode.getFirstNestedBlock().sequence(n => n.getFirstSiblingBlock())
+      .map(node => this.drawListForBlock(node, rootBlock, nestedItemList));
+    stackItemList.append(nestedItemList);
+  }
+  if (this.getNestingBlockName(block)) {
+    var endElem = Blockly.Linearization.makeListTextElement_('end ' + this.getNestingBlockName(block));
+    stackItemList.append(endElem);
+  }
+}
+
+/**
+* Takes in a nesting block (e.g. if, repeat while, etc.) and returns a shorthand human-readable identifier.
+* @param {Blockly.Block} block the block to find a name for
+* @return {string} readable identifier for the nesting block
+*/
+Blockly.Linearization.prototype.getNestingBlockName = function(block) {
+  // TODO: localization
+  var blockNames = {
+    'controls_if': 'if',
+    'controls_repeat_ext': 'repeat',
+    'controls_forEach': 'for each',
+    'controls_for': 'for',
+    'procedures_defnoreturn': 'function',
+    'procedures_defreturn': 'function',
+    'controls_whileUntil': 'repeat while'
+  }
+  if ((block.type === 'controls_whileUntil' && block.inputList[0].fieldRow[1].getText() === 'until')) {
+    blockNames['controls_whileUntil'] = 'repeat until';
+  }
+  if (blockNames[block.type]) {
+    return blockNames[block.type];
+  } else {
+    return null;
+  }
+
+}
   /**
  * Creates and returns the HTML unordered list of every block on the same visual
  * indent within the rootNode, represented with list elements
@@ -690,17 +766,17 @@ Blockly.Linearization.prototype.makeBasicListElement_ = function(node) {
 
 /**
  * Creates and returns a textfield HTML li element linked to node's value.
- * @param {!Blockly.ASTNode} node the node of type field or input containing the item to represent
+ * @param {!Blockly.ASTNode} nodeLocation the field or input to represent
  * @return {HTMLElement} an html list item that is edittable for number
  * and text fields.
  * @private
  */
-Blockly.Linearization.prototype.makeEdittableFieldElement_ = function(node) {
+Blockly.Linearization.prototype.makeEdittableFieldElement_ = function(nodeLocation) {
   var listElem;
   try {
-    var field = node.fieldRow[0];
+    var field = nodeLocation.fieldRow[0];
   } catch {
-    var field = node;
+    var field = nodeLocation;
   }
   if (field instanceof Blockly.FieldDropdown) {
     return this.makeDropdownElement_(field)
