@@ -75,7 +75,7 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
       back = n => n.next();
       break;
     default:
-      console.warn({msg: 'fell through', insertPointNode});
+      console.warn('fell through', insertPointNode);
       return;
   }
 
@@ -96,13 +96,12 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
       provided.prev().getLocation().disconnect();
     }
   } catch (e) {
-    console.log(e);
+    console.warn('unsuccessful disconnect', e);
   }
 
   try {
     insertPointNode.getLocation().connect(providedBlock);
   } catch (e) {
-    console.log(e);
     if (e instanceof DOMException) {
       document.location.reload();
     }
@@ -121,9 +120,7 @@ Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
   try {
     this.blockNode.prev().getLocation().disconnect();
     this.blockNode = null;
-  } catch (e) {
-    console.log(e);
-  }
+  } catch (e) { /* unsuccessful disconnect */  }
 }
 
 /**
@@ -182,11 +179,7 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
       var block = workspace.getBlockById(e.blockId);
       node = block && Blockly.ASTNode.createBlockNode(block);
       if (block && this.blockJoiner.connectionNode) {
-        try {
-          this.blockJoiner.push(node);
-        } catch(e) {
-          this.blockJoiner.blockNode = null;
-        }
+        this.blockJoiner.push(node);
       }
       break;
     case Blockly.Events.FINISHED_LOADING:
@@ -263,14 +256,18 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
       this.blockJoiner.blockNode = null;
       blockNode.getLocation().dispose(true);
     })
-    pNav.appendChild(deleteItem);
-    pNav.appendChild(document.createElement('br'));
-    var newStackItem = document.createElement('b');
-    newStackItem.appendChild(document.createTextNode('Start new stack'));
-    newStackItem.addEventListener('click', e => {
-      this.blockJoiner.disconnectBlock();
-    });
-    pNav.appendChild(newStackItem);
+
+    // if this has the ability to be mid-stack (unlike hat blocks)
+    if (blockNode.prev()) {
+      pNav.appendChild(deleteItem);
+      pNav.appendChild(document.createElement('br'));
+      var newStackItem = document.createElement('b');
+      newStackItem.appendChild(document.createTextNode('Start new stack'));
+      newStackItem.addEventListener('click', e => {
+        this.blockJoiner.disconnectBlock();
+      });
+      pNav.appendChild(newStackItem);
+    }
   }
 }
 
@@ -385,8 +382,11 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
  * @private
  */
 Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
+  if (!this.blockJoiner.blockNode) {
+    return [];
+  }
   var inNodeSeq = inNode.sequence(n => n.next());
-  var counter = { // used mainly for if/elseif/else statements
+  var counter = {
     tackVal: 1,
     insertVal: 1,
     tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
@@ -625,12 +625,11 @@ Blockly.Linearization.prototype.makeInputListItem_ = function(node) {
         var targetBlockNode = node.in().next();
         return this.makeBasicListItem_(targetBlockNode);
       }
-      return Blockly.Linearization.makeListTextItem_('add block inline');
+      break;
     case Blockly.ASTNode.types.OUTPUT:
       break;
-    default:
-      console.log('uncaught');
-      console.log(node);
+    default: // should never happen
+      console.warn('uncaught', node);
       break;
   }
   return null;
@@ -651,7 +650,7 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
   var dispPrev = prevConn && !prevConn.prev();
   if (disp && dispPrev) {
     try {
-      prevConn.getLocation().checkConnection_(this.blockJoiner.blockNode.next().getLocation())
+      prevConn.getLocation().checkConnection_(this.blockJoiner.blockNode.next().getLocation());
       list.push(this.makeBasicConnListItem_(prevConn, 'Insert above'));
     } catch (e) { /* invalid connection point */ }
   }
@@ -710,10 +709,9 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
     if (condConnNode && condConnNode.in() && condConnNode.in().next()) {
       bracketItem = this.makeBasicListItem_(condConnNode.in().next());
       bracketItem.innerHTML = text;
-      console.log(bracketItem);
-    } else if (condConnNode) {
+    } else if (condConnNode && this.blockJoiner.blockNode) {
       bracketItem = this.makeBasicConnListItem_(condConnNode);
-      bracketItem.innerHTML = text;
+      bracketItem.innerHTML = text + ' (click to fill blank)';
     } else {
       bracketItem = Blockly.Linearization.makeListTextItem_(text);
     }
@@ -816,34 +814,45 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
   if (!options.length) {
     return null;
   }
-  var entry;
+
+
+  const makeOptObj = (option) => {return {label: option[0], value: option[1]}};
+  const makeEntryObj = (i) => {return {i: i, option: makeOptObj(options[i])}};
+
+  var entry = makeEntryObj(0);
   for (var i = 0, option; option = options[i]; i++) {
     if (option[1] === field.getValue()) {
-      entry = [i, option];
+      entry = makeEntryObj(i);
+      break;
     }
   }
-  if (!entry) {
-    entry = [0, field.getOptions()[0]];
-  }
-  var elem = Blockly.Linearization.makeListTextItem_('Field: ' + entry[1][0]);
-  elem.setAttribute('aria-label', 'Field: ' + entry[1][0] + ', click to change');
-  elem.setAttribute('index', entry[0]);
+
+  var labelText = 'Field: ' + entry.option.label;
+  var elem = Blockly.Linearization.makeListTextItem_(labelText);
+  elem.setAttribute('aria-label', labelText + ', click to change');
+  elem.setAttribute('index', entry.i);
   elem.addEventListener('click', e => {
-    var newIndex = (parseInt(elem.getAttribute('index')) + 1)
-        % field.getOptions().length;
-    var option = field.getOptions()[newIndex];
-    var textNode = document.createTextNode('Field: ' + option[0]);
-    elem.setAttribute('aria-label', 'Field: ' + option[0] + ', click to change');
-    elem.replaceChild(textNode, elem.firstChild);
-    elem.setAttribute('index', newIndex);
     Blockly.Events.disable();
-    // TODO: fix me, so very sad
-    try {
-      field.setValue(option[1]);
-      this.generateParentNav_(this.selectedNode);
-    } finally {
-      Blockly.Events.enable();
+    var offset = 1;
+    while (offset < field.getOptions().length) {
+      var newIndex = (parseInt(elem.getAttribute('index')) + offset)
+          % field.getOptions().length;
+      var option = makeOptObj(field.getOptions()[newIndex]);
+      var newLabelText = 'Field: ' + option.label;
+      var textNode = document.createTextNode(newLabelText);
+      elem.setAttribute('aria-label', newLabelText + ', click to change');
+      elem.setAttribute('index', newIndex);
+
+      try {
+        field.setValue(option.value);
+        elem.replaceChild(textNode, elem.firstChild);
+        break;
+      } catch (e) { // not a variable, so value can't be set
+        console.warn('not a valid variable', option);
+      }
     }
+    this.generateParentNav_(this.selectedNode);
+    Blockly.Events.enable();
   });
   return elem;
 }
@@ -892,8 +901,7 @@ Blockly.Linearization.prototype.moveItemOnclick = function(node) {
     this.selectedNode = null;
     this.generateList_();
   } catch (e) {
-    console.log('Unsuccessful push');
-    console.log(e);
+    console.warn('Unsuccessful push', e);
   }
 }
 
