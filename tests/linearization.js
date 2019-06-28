@@ -106,6 +106,10 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
   this.blockNode = null;
 }
 
+/**
+ * Attempts to disconnect the current block in this.blockNode and put in on the
+ * workspace. Nulls this.blockNode if successful
+ */
 Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
   if (!this.blockNode) {
     return;
@@ -365,6 +369,7 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function (stackNode) {
   stackItem.appendChild(stackItemList);
   return stackItem;
 }
+
 /**
  * Takes in a block node and recursively makes the list of elements for all
  * descendant blocks.
@@ -429,6 +434,7 @@ Blockly.Linearization.prototype.getNestingBlockName = function(block) {
   }
   return null;
 }
+
   /**
  * Creates and returns the HTML unordered list of every block on the same visual
  * indent within the rootNode, represented with list elements
