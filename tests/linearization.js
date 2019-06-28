@@ -516,10 +516,9 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
     tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
     insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
   }
-  var parentInput = n.getParentInput();
   return inNodeSeq.map(n => this.makeBasicConnListItem_(
             n,
-            parentInput && parentInput.type === Blockly.INPUT_VALUE?
+            n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
                 'Tack on side' + counter.tackText():
                 'Insert within' + counter.insertText())
           );
@@ -700,7 +699,7 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
   item.id = "li" + connection.id;
   item.blockId = connection.id;
   item.setAttribute('style', 'color:hsl(0, 0%, 0%)');
-  item.addEventListener('click', e => this.moveItemOnclick(node));
+  item.addEventListener('click', e => this.moveItemOnclick(node, e));
   return item;
 }
 
@@ -1020,7 +1019,7 @@ Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
 Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
   var text = this.blockJoiner.blockNode? 'Move me instead': 'Move me';
   var element = Blockly.Linearization.makeListTextItem_(text);
-  element.addEventListener('click', e => this.moveItemOnclick(node));
+  element.addEventListener('click', e => this.moveItemOnclick(node, e));
   return element;
 }
 
@@ -1029,11 +1028,12 @@ Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
  * linearization
  * @param {!Blockly.ASTNode} node the node to be pushed
  */
-Blockly.Linearization.prototype.moveItemOnclick = function(node) {
+Blockly.Linearization.prototype.moveItemOnclick = function(node, e) {
   try {
     this.blockJoiner.push(node);
     this.selectedNode = null;
     this.generateList_();
+    e.stopPropagation();
   } catch (e) {
     console.warn('Unsuccessful push', e);
   }
