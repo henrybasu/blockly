@@ -842,11 +842,16 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
     if (condConnNode && condConnNode.in() && condConnNode.in().next()) {
       bracketItem = this.makeBasicListItem_(condConnNode.in().next());
       bracketItem.innerHTML = text;
-    } else if (condConnNode && this.blockJoiner.blockNode) {
-      bracketItem = this.makeBasicConnListItem_(condConnNode);
-      bracketItem.innerHTML = text + ' (click to fill blank)';
     } else {
-      bracketItem = Blockly.Linearization.makeListTextItem_(text);
+      try {
+        condConnNode.getLocation().checkConnection_(
+          this.blockJoiner.blockNode.next().getLocation());
+          bracketItem = this.makeBasicConnListItem_(condConnNode);
+          bracketItem.innerHTML = text + ' (click to fill blank)';
+        } catch(e) {
+          console.log(e);
+          bracketItem = Blockly.Linearization.makeListTextItem_(text);
+        }
     }
 
     var bracketItemList = document.createElement('ul');
@@ -1033,7 +1038,6 @@ Blockly.Linearization.prototype.moveItemOnclick = function(node, e) {
     this.blockJoiner.push(node);
     this.selectedNode = null;
     this.generateList_();
-    e.stopPropagation();
   } catch (e) {
     console.warn('Unsuccessful push', e);
   }
