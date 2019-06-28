@@ -336,7 +336,7 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
  * @return {HTMLElement} a list element describing the complete stack as
  * a color-coded, linked sublist
  */
-Blockly.Linearization.prototype.makeFullStackItem_ = function (stackNode) {
+Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
   var stackItem = document.createElement('li');
   var stackElem =
       Blockly.Linearization.makeListTextItem_('Stack ' + this.marker);
@@ -715,7 +715,7 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
 Blockly.Linearization.prototype.makeParentItem_ = function(node=undefined) {
   var item = document.createElement('b');
   var labelText = Blockly.Linearization.getNodeLabel(node);
-  if (!node) {
+  if (!node && !this.selectedNode) {
     labelText += this.blockJoiner.blockNode? ' (move mode)': ' (summary)';
   }
   item.appendChild(document.createTextNode(labelText + ' > '));
