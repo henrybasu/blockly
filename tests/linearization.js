@@ -88,6 +88,7 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
     if (provided.prev() && provided.prev().prev()
         && detach.includes(provided.prev().getType())) {
       provided.prev().getLocation().disconnect();
+      provided.prev().getLocation().bumpNeighbours_();
     }
   } catch (e) {
     console.warn('unsuccessful disconnect', e);
@@ -117,8 +118,9 @@ Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
 
   try {
     this.blockNode.prev().getLocation().disconnect();
+    this.blockNode.getLocation().bumpNeighbours_();
     this.blockNode = null;
-  } catch (e) { /* unsuccessful disconnect */  }
+  } catch (e) { /* unsuccessful disconnect */ }
 }
 
 /**
@@ -135,11 +137,11 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
 /**
  * The ChangeListener for workspace events. On fire, fully redraws
  * linearization, including parentNav.
- * @param {?Blockly.Events.Abstract=} e undefined by default, the workspace
+ * @param {?Blockly.Events.Abstract} e undefined by default, the workspace
  * event that triggers this ChangeListener.
  * @private
  */
-Blockly.Linearization.prototype.generateList_ = function(e=undefined) {
+Blockly.Linearization.prototype.generateList_ = function(e) {
   var workspace = this.workspace;
   if (!workspace.getAllBlocks().length) {
     this.mainNavList.innerHTML = '';
@@ -295,8 +297,7 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
       stack => this.makePartialStackItem_(stack):
       stack => this.makeFullStackItem_(stack);
 
-  stacks.map(mappingFn)
-    .forEach(item => wsList.append(item));
+  stacks.map(mappingFn).forEach(item => wsList.append(item));
 
   return wsList;
 }
@@ -450,8 +451,9 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
 
   var warning = rootNode.getLocation().warning;
   if (warning && warning.getText && warning.getText().length) {
-    sublist.appendChild(
-      Blockly.Linearization.makeListTextItem_(warning.getText()));
+    var warnItem = Blockly.Linearization.makeListTextItem_(warning.getText());
+    warnItem.setAttribute('style', 'color:rgb(250, 50, 50)');
+    sublist.appendChild(warnItem);
   }
 
   var connNode = this.blockJoiner.connectionNode;
@@ -491,7 +493,11 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
         .map(node => this.makeNodeListItems_(node))
         .forEach(elems => sublist.append(...elems));
   } else if (!connNode && inNode) {
-      sublist.append(...this.makeAllInnerInputItems_(inNode));
+    sublist.append(...this.makeAllInnerInputItems_(inNode));
+  }
+
+  if (rootNode.getLocation().type === 'procedures_defreturn') {
+    sublist.appendChild(this.makeReturnItem_(rootNode, inNode));
   }
 
   return sublist;
@@ -513,8 +519,20 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
   var counter = {
     tackVal: 1,
     insertVal: 1,
-    tackText: () => (inNodeSeq.length == 1)? '': ' ' + counter.tackVal++,
-    insertText: () => (inNodeSeq.length == 1)? '':' ' + counter.insertVal++
+    tackText: function() {
+      if (counter.tackVal === 1 && inNodeSeq.length <= 1) {
+        counter.tackVal++;
+        return '';
+      }
+      return inNodeSeq.length <= 1? '': ' ' + counter.tackVal++;
+    },
+    insertText: function() {
+      if (counter.insertVal === 1 && inNodeSeq.length <= 1) {
+        counter.insertVal++;
+        return '';
+      }
+      return inNodeSeq.length <= 1? '': ' ' + counter.insertVal++;
+    }
   }
   return inNodeSeq.map(n => this.makeBasicConnListItem_(
             n,
@@ -706,12 +724,12 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
 /**
  * Creates and returns the color-coded, linked HTML bold text of a parent block
  * used in parent-nav.
- * @param {?Blockly.ASTNode=} node undefined by default, a parent node. If null,
- * creates the workspace ParentItem.
+ * @param {?Blockly.ASTNode} node a parent node. If null, creates the
+ * workspace ParentItem.
  * @return {HTMLElement} an html representation of node as a parent
  * @private
  */
-Blockly.Linearization.prototype.makeParentItem_ = function(node=undefined) {
+Blockly.Linearization.prototype.makeParentItem_ = function(node) {
   var item = document.createElement('b');
   var labelText = Blockly.Linearization.getNodeLabel(node);
   if (!node && !this.selectedNode) {
@@ -849,7 +867,6 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
           bracketItem = this.makeBasicConnListItem_(condConnNode);
           bracketItem.innerHTML = text + ' (click to fill blank)';
         } catch(e) {
-          console.log(e);
           bracketItem = Blockly.Linearization.makeListTextItem_(text);
         }
     }
@@ -1012,6 +1029,35 @@ Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
   returnNode.appendChild(document.createTextNode(labelText));
   returnNode.addEventListener('click', e => this.listItemOnclick(outNode));
   return returnNode;
+}
+
+/**
+ * Creates and returns a linked HTML li element linked to a function w/return
+ * node's return value block
+ * @param {!Blockly.ASTNode} node the node that contains the function block
+ * @return {HTMLElement} an html list item that will navigate to the return
+ * value of the block
+ */
+Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode, inNode) {
+  var returnNode = inNode.sequence(n => n.next()).find(n =>
+    n.getLocation().getParentInput() &&
+    n.getLocation().getParentInput().type === 1);
+  if (returnNode.in() && returnNode.in().next()) {
+    var returnBlock = returnNode.in().next();
+    var returnListItem = this.makeBasicListItem_(returnBlock);
+    returnListItem.innerHTML = 'return ' + returnListItem.innerHTML;
+    return returnListItem;
+  }
+
+  if (this.blockJoiner.blockNode) {
+    try {
+      returnNode.getLocation().checkConnection_(
+        this.blockJoiner.blockNode.prev().getLocation());
+      return this.makeBasicConnListItem_(returnNode, 'Insert in return');
+    } catch (e) { /* invalid connection point */ }
+  }
+
+  return Blockly.Linearization.makeListTextItem_('return blank');
 }
 
 /**
