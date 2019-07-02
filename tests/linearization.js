@@ -333,7 +333,7 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
 
 /**
  * Generates the html li that contains listings for all items in the stack
- * @param {!Blockly.ASTNode} stack the stack to represent
+ * @param {!Blockly.ASTNode} stackNode the stack to represent
  * @return {HTMLElement} a list element describing the complete stack as
  * a color-coded, linked sublist
  */
@@ -377,10 +377,9 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
  * Excludes inline blocks, such as those found in the repeat x times block.
  * @param {Blockly.ASTNode} blockNode the block AST node to start from
  * @param {Blockly.Block} rootBlock the block at which blockNode points to
- * @param stackItemList TODO: fill me in
- * @param {HTMLElement} the HTML list to add the list elements to
+ * @param {HTMLElement} stackItemList the HTML list to add the list elements to
  */
-Blockly.Linearization.prototype.drawListForBlock = function(blockNode,
+Blockly.Linearization.prototype.drawListForBlock2  = function(blockNode,
     rootBlock, stackItemList) {
   var block = blockNode.getLocation();
   if (blockNode.getType() === Blockly.ASTNode.types.BLOCK
@@ -402,6 +401,64 @@ Blockly.Linearization.prototype.drawListForBlock = function(blockNode,
       .map(node => this.drawListForBlock(node, rootBlock, nestedItemList));
     stackItemList.append(nestedItemList);
   }
+  if (this.getNestingBlockName(block)) {
+    var endElem = Blockly.Linearization.makeListTextItem_(
+        'end ' + this.getNestingBlockName(block));
+    stackItemList.append(endElem);
+  }
+}
+
+/**
+ * NEW VERSION THAT HOPEFULLY FIXES IF-ELSE ISSUES
+ * TODO: Make this cleaner
+ * Takes in a block node and recursively makes the list of elements for all
+ * descendant blocks.
+ * Excludes inline blocks, such as those found in the repeat x times block.
+ * @param {Blockly.ASTNode} blockNode the block AST node to start from
+ * @param {Blockly.Block} rootBlock the block at which blockNode points to
+ * @param {HTMLElement} stackItemList the HTML list to add the list elements to
+ */
+Blockly.Linearization.prototype.drawListForBlock = function(blockNode,
+    rootBlock, stackItemList) {
+  var block = blockNode.getLocation();
+  if (blockNode.getType() === Blockly.ASTNode.types.BLOCK
+    && !(block.outputConnection && block.getParent())
+    && block.getRootBlock() === rootBlock) {
+
+    if (block.type === 'controls_if') {
+      var listElems = this.makeIfListItems_(blockNode);
+      var childNodes = this.getIfChildrenNodes_(blockNode);
+      for (var i=0; i < listElems.length; i++) {
+        if (block.getSurroundParent()) {
+          listElems[i].setAttribute('aria-label', listElems[i].innerHTML
+          + ', inside ' + this.getNestingBlockName(block.getSurroundParent()));
+        }
+        listElems[i].removeChild(listElems[i].childNodes[1]);
+        var nestedItemList = document.createElement('ul');
+        if (childNodes[i]) {
+          childNodes[i].sequence(n => n.getFirstSiblingBlock())
+            .map(node => this.drawListForBlock(node, rootBlock, nestedItemList));
+        }
+        stackItemList.append(listElems[i]);
+        stackItemList.append(nestedItemList);
+      }
+
+    } else {
+      var listElem = this.makeBasicListItem_(blockNode);
+      if (block.getSurroundParent()) {
+        listElem.setAttribute('aria-label', listElem.innerHTML
+          + ', inside ' + this.getNestingBlockName(block.getSurroundParent()));
+      }
+      stackItemList.append(listElem);
+      if (blockNode.getFirstNestedBlock()) {
+        var nestedItemList = document.createElement('ul');
+        blockNode.getFirstNestedBlock().sequence(n => n.getFirstSiblingBlock())
+          .map(node => this.drawListForBlock(node, rootBlock, nestedItemList));
+        stackItemList.append(nestedItemList);
+      }
+    }
+  }
+
   if (this.getNestingBlockName(block)) {
     var endElem = Blockly.Linearization.makeListTextItem_(
         'end ' + this.getNestingBlockName(block));
@@ -608,8 +665,9 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
       while (block.arguments_.includes(argname)) {
         argname += 'I';
       }
-
+      var newVar = workspace.createVariable(argname);
       block.arguments_.push(argname);
+      block.argumentVarModels_.push(newVar);
       block.updateParams_();
       this.listItemOnclick(rootNode);
     }));
@@ -625,8 +683,8 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
           block.updateParams_();
           listItemOnclick(rootNode);
         } else {
-          block.arguments_.splice(
-            block.arguments_.indexOf(arg), 1, elem.innerText);
+          var argModel = block.getVarModels()[block.arguments_.indexOf(arg)];
+          workspace.renameVariableById(argModel.getId(), elem.innerText);
           block.updateParams_();
         }
       });
@@ -820,6 +878,26 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
   }
 
   return list;
+}
+
+Blockly.Linearization.prototype.getIfChildrenNodes_ = function(ifNode) {
+  const children = ifNode.in().sequence(n => n.next());
+  const inputs = ifNode.getLocation().inputList;
+  var childrenNodes = [];
+  for (var i = 0; i < inputs.length; i += 2) {
+    if (i == inputs.length - 1) {
+      var index = i;
+    } else {
+      var index = i+1;
+    }
+
+    if (children[index].in()) {
+      childrenNodes.push(children[index].in().next());
+    } else {
+      childrenNodes.push(null);
+    }
+  }
+  return childrenNodes;
 }
 
 /**
@@ -1197,7 +1275,7 @@ Blockly.Linearization.nextInlineInput = function(node) {
 //   }
 //   return connectionList;
 // }
-//
+
 // function getAllValidNodesForBlock(block) {
 //  var ws = Blockly.getMainWorkspace();
 //  var defaultCoord = new goog.math.Coordinate(100,100);
@@ -1209,13 +1287,13 @@ Blockly.Linearization.nextInlineInput = function(node) {
 //  } while (curNode);
 //  return nodes;
 // }
-//
+
 // Unused code
-//
-// /**
-//  * Returns all blocks in the main workspace encapsulated in nodes.
-//  * @return {Array<Blockly.ASTNode>} all possible nodes from the main workspace
-//  */
+
+/**
+ * Returns all blocks in the main workspace encapsulated in nodes.
+ * @return {Array<Blockly.ASTNode>} all possible nodes from the main workspace
+ */
 // function getAllNodes() {
 //     var ws = Blockly.getMainWorkspace();
 //     var curNode = Blockly.ASTNode.createWorkspaceNode(ws, new goog.math.Coordinate(100,100));
@@ -1226,7 +1304,7 @@ Blockly.Linearization.nextInlineInput = function(node) {
 //     } while (curNode);
 //     return nodes;
 // }
-//
+
 // /**
 //  * Decides what nodes to traverse and which ones to skip. Currently, it
 //  * skips output, stack and workspace nodes.
@@ -1245,7 +1323,7 @@ Blockly.Linearization.nextInlineInput = function(node) {
 //   }
 //   return isValid;
 // }
-//
+
 // /**
 //  * From the given node find either the next valid sibling or parent.
 //  * @param {Blockly.ASTNode} node The current position in the ast.
@@ -1263,7 +1341,7 @@ Blockly.Linearization.nextInlineInput = function(node) {
 //   }
 //   return findSiblingOrParent(node.out());
 // }
-//
+
 // /**
 //  * Uses pre order traversal to go navigate the blockly ast. This will allow
 //  * a user to easily navigate the entire blockly AST without having to go in
