@@ -637,13 +637,13 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
     }));
   }
 
-  if (block.itemCount_ != undefined) {
+  if (block.itemCount_ !== undefined) {
     list.push(this.makeMutatorListItem_(rootNode, 'Add item', block => {
       block.itemCount_++;
       block.updateShape_();
     }));
 
-    if (block.itemCount_ > 1) {
+    if (block.itemCount_ > 0) {
       list.push(this.makeMutatorListItem_(rootNode, 'Remove item', block => {
         block.itemCount_--;
         block.updateShape_();
