@@ -376,10 +376,9 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
  * Excludes inline blocks, such as those found in the repeat x times block.
  * @param {Blockly.ASTNode} blockNode the block AST node to start from
  * @param {Blockly.Block} rootBlock the block at which blockNode points to
- * @param stackItemList TODO: fill me in
- * @param {HTMLElement} the HTML list to add the list elements to
+ * @param {HTMLElement} stackItemList the HTML list to add the list elements to
  */
-Blockly.Linearization.prototype.drawListForBlock = function(blockNode,
+Blockly.Linearization.prototype.drawListForBlock2  = function(blockNode,
     rootBlock, stackItemList) {
   var block = blockNode.getLocation();
   if (blockNode.getType() === Blockly.ASTNode.types.BLOCK
@@ -408,10 +407,17 @@ Blockly.Linearization.prototype.drawListForBlock = function(blockNode,
   }
 }
 
-/*
-* THIS IS BROKEN
-*/
-Blockly.Linearization.prototype.drawListForBlock2 = function(blockNode,
+/**
+ * NEW VERSION THAT HOPEFULLY FIXES IF-ELSE ISSUES
+ * TODO: Make this cleaner
+ * Takes in a block node and recursively makes the list of elements for all
+ * descendant blocks.
+ * Excludes inline blocks, such as those found in the repeat x times block.
+ * @param {Blockly.ASTNode} blockNode the block AST node to start from
+ * @param {Blockly.Block} rootBlock the block at which blockNode points to
+ * @param {HTMLElement} stackItemList the HTML list to add the list elements to
+ */
+Blockly.Linearization.prototype.drawListForBlock = function(blockNode,
     rootBlock, stackItemList) {
   var block = blockNode.getLocation();
   if (blockNode.getType() === Blockly.ASTNode.types.BLOCK
@@ -432,16 +438,10 @@ Blockly.Linearization.prototype.drawListForBlock2 = function(blockNode,
           childNodes[i].sequence(n => n.getFirstSiblingBlock())
             .map(node => this.drawListForBlock(node, rootBlock, nestedItemList));
         }
-        listElems[i].append(nestedItemList);
         stackItemList.append(listElems[i]);
-
+        stackItemList.append(nestedItemList);
       }    
-      // for (var child of childNodes) {
-      //   var nestedItemList = document.createElement('ul');
-      //   blockNode.getFirstNestedBlock().sequence(n => n.getFirstSiblingBlock())
-      //     .map(node => this.drawListForBlock(node, rootBlock, nestedItemList));
-      //   stackItemList.append(nestedItemList);
-      // }
+
     } else {
       var listElem = this.makeBasicListItem_(blockNode);
       if (block.getSurroundParent()) { 
