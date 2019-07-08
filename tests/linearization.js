@@ -1066,10 +1066,10 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
   elem.setAttribute('index', entry.i);
   elem.addEventListener('click', e => {
     Blockly.Events.disable();
+    const oldIndex = parseInt(elem.getAttribute('index'));
     var offset = 1;
     while (offset < field.getOptions().length) {
-      var newIndex = (parseInt(elem.getAttribute('index')) + offset)
-          % field.getOptions().length;
+      var newIndex = (oldIndex + offset) % field.getOptions().length;
       var option = makeOptObj(field.getOptions()[newIndex]);
       var newLabelText = 'Field: ' + option.label;
       var textNode = document.createTextNode(newLabelText);
@@ -1082,6 +1082,8 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
         break;
       } catch (e) { // not a variable, so value can't be set
         console.warn('not a valid variable', option);
+      } finally {
+        offset++;
       }
     }
     this.generateParentNav_(this.selectedNode);
