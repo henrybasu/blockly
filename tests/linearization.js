@@ -22,6 +22,7 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   this.parentNav = parentNav;
   this.mainNavList = mainNavList;
   this.blockJoiner = new Blockly.Linearization.BlockJoiner();
+  this.blankText_ = 'NOTHING'; // ***Requires Localization***
   workspace.addChangeListener(e => this.generateList_(e));
 }
 
@@ -217,6 +218,7 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
 }
 
 /**
+ * ***Requires Localization***
  * Generates (and replaces) the old parent-nav bar, using color-coded, linked
  * breadcrumbs. Always includes workspace.
  * @param {!Blockly.Workspace} Current workspace
@@ -243,6 +245,7 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
   if (this.blockJoiner.connectionNode || blockNode) {
     pNav.appendChild(document.createElement('br'));
     var cancelItem = document.createElement('b');
+    // ***Requires Localization***
     cancelItem.appendChild(document.createTextNode('Cancel Move'));
     cancelItem.addEventListener('click', e => {
         if (this.blockJoiner.connectionNode) {
@@ -259,6 +262,7 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
   if (blockNode && !this.selectedNode) {
     pNav.appendChild(document.createElement('br'));
     var deleteItem = document.createElement('b');
+    // ***Requires Localization***
     var text = 'Delete ' + blockNode.getLocation().makeAriaLabel();
     deleteItem.appendChild(document.createTextNode(text));
     deleteItem.addEventListener('click', e => {
@@ -272,6 +276,7 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
       pNav.appendChild(deleteItem);
       pNav.appendChild(document.createElement('br'));
       var newStackItem = document.createElement('b');
+      // ***Requires Localization***
       newStackItem.appendChild(document.createTextNode('Start new stack'));
       newStackItem.addEventListener('click', e => {
         this.blockJoiner.disconnectBlock();
@@ -309,6 +314,7 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
 }
 
 /**
+ * ***Requires Localization***
  * Generates the stack item that contains all the top-level information
  * as well as movement options for the provided stack. Designed for use during
  * move operations
@@ -318,6 +324,7 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
  */
 Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
   var stackItem = document.createElement('li');
+  // ***Requires Localization***
   stackItem.appendChild(document.createTextNode('Stack ' + this.marker));
   this.marker = Blockly.Linearization.nextStackMarker(this.marker);
   var stackItemList = document.createElement('ul');
@@ -338,6 +345,7 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
 }
 
 /**
+ * ***Requires Localization***
  * Generates the html li that contains listings for all items in the stack
  * @param {!Blockly.ASTNode} stackNode the stack to represent
  * @return {HTMLElement} a list element describing the complete stack as
@@ -345,6 +353,7 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
  */
 Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
   var stackItem = document.createElement('li');
+  // ***Requires Localization***
   var stackElem =
       Blockly.Linearization.makeListTextItem_('Stack ' + this.marker);
   stackElem.contentEditable = true;
@@ -379,8 +388,7 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
 }
 
 /**
- * NEW VERSION THAT HOPEFULLY FIXES IF-ELSE ISSUES
- * TODO: Make this cleaner
+ * ***Requires Localization***
  * Takes in a block node and recursively makes the list of elements for all
  * descendant blocks.
  * Excludes inline blocks, such as those found in the repeat x times block.
@@ -393,6 +401,7 @@ Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
     rootBlock) {
   var block = blockNode.getLocation();
   var nestedName = this.getNestingBlockName_(block);
+  // ***Requires Localization***
   var endList = nestedName?
     [Blockly.Linearization.makeListTextItem_('end ' + nestedName)]: [];
 
@@ -404,46 +413,53 @@ Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
 
   var descendantItems = [];
 
-  switch (block.type) {
-    case 'controls_if':
-      var listElems = this.makeIfListItems_(blockNode);
-      var childNodes = this.getIfChildrenNodes_(blockNode);
-      for (var i = 0; i < listElems.length; i++) {
-        if (block.getSurroundParent()) {
-          listElems[i].setAttribute('aria-label', listElems[i].innerHTML
-          + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
-        }
-        listElems[i].removeChild(listElems[i].childNodes[1]);
-        var nestedItemList = document.createElement('ul');
-        if (childNodes[i]) {
-          childNodes[i].sequence(n => n.getFirstSiblingBlock())
-            .map(node => this.makeListForBlock_(node, rootBlock))
-            .forEach(items => nestedItemList.append(...items));
-        }
-        descendantItems.push(listElems[i]);
-        descendantItems.push(nestedItemList);
-      }
-      break;
-    default:
-      var listElem = this.makeBasicListItem_(blockNode);
+  if (block.type === 'controls_if')
+    var listElems = this.makeIfListItems_(blockNode);
+    var childNodes = this.getIfChildrenNodes_(blockNode);
+    for (var i = 0; i < listElems.length; i++) {
       if (block.getSurroundParent()) {
-        listElem.setAttribute('aria-label', listElem.innerHTML
-          + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+        // ***Requires Localization***
+        listElems[i].setAttribute('aria-label', listElems[i].innerHTML
+        + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
       }
-      descendantItems.push(listElem);
-      if (blockNode.getFirstNestedBlock()) {
-        var nestedItemList = document.createElement('ul');
-        blockNode.getFirstNestedBlock().sequence(n => n.getFirstSiblingBlock())
+      listElems[i].removeChild(listElems[i].childNodes[1]);
+      var nestedItemList = document.createElement('ul');
+      if (childNodes[i]) {
+        childNodes[i].sequence(n => n.getFirstSiblingBlock())
           .map(node => this.makeListForBlock_(node, rootBlock))
-          .forEach(items => nestedItemList.append(...items))
-        descendantItems.push(nestedItemList);
+          .forEach(items => nestedItemList.append(...items));
       }
+      descendantItems.push(listElems[i]);
+      descendantItems.push(nestedItemList);
+    }
+    break;
+  } else {
+    var listElem = this.makeBasicListItem_(blockNode);
+    if (block.getSurroundParent()) {
+      // ***Requires Localization***
+      listElem.setAttribute('aria-label', listElem.innerHTML
+        + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+    }
+    descendantItems.push(listElem);
+    if (blockNode.getFirstNestedBlock()) {
+      var nestedItemList = document.createElement('ul');
+      blockNode.getFirstNestedBlock().sequence(n => n.getFirstSiblingBlock())
+        .map(node => this.makeListForBlock_(node, rootBlock))
+        .forEach(items => nestedItemList.append(...items));
+
+      if (block.type === 'procedures_defreturn') {
+        nestedItemList.append(this.makeReturnItem_(blockNode));
+      }
+
+      descendantItems.push(nestedItemList);
+    }
   }
 
   return descendantItems.concat(endList);
 }
 
 /**
+ * ***Requires Localization***
  * Takes in a nesting block (e.g. if, repeat while, etc.) and returns a
  * shorthand human-readable identifier.
  * @param {Blockly.Block} block the block to find a name for
@@ -451,7 +467,7 @@ Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
  * @private
  */
 Blockly.Linearization.prototype.getNestingBlockName_ = function(block) {
-  // TODO: localization
+  // ***Requires Localization***
   var blockNames = {
     'controls_if': 'if',
     'controls_repeat_ext': 'repeat',
@@ -468,7 +484,8 @@ Blockly.Linearization.prototype.getNestingBlockName_ = function(block) {
   return blockNames[block.type];
 }
 
-  /**
+/**
+ * ***Requires Localization***
  * Creates and returns the HTML unordered list of every block on the same visual
  * indent within the rootNode, represented with list elements
  * @param {!Blockly.ASTNode} rootNode the direct parent of all items in the list
@@ -494,6 +511,7 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
 
   var prevConn = rootNode.prev();
   if (prevConn && connNode) {
+    // ***Requires Localization***
     sublist.appendChild(this.makeConnListItem_(rootNode, prevConn,
         inlineOutputConn? 'Tack me on side of': 'Insert me below',
         'Insert above me'));
@@ -529,13 +547,14 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
   }
 
   if (rootNode.getLocation().type === 'procedures_defreturn') {
-    sublist.appendChild(this.makeReturnItem_(rootNode, inNode));
+    sublist.appendChild(this.makeReturnItem_(rootNode));
   }
 
   return sublist;
 }
 
 /**
+ * ***Requires Localization***
  * Returns all inner input nodes as a array of html elements, starting with
  * inNode.
  * @param {!Blockly.ASTNode} inNode the first inner input element to convert
@@ -568,6 +587,7 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
   }
   return inNodeSeq.map(n => this.makeBasicConnListItem_(
             n,
+            // ***Requires Localization***
             n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
                 'Tack on side' + counter.tackText():
                 'Insert within' + counter.insertText())
@@ -575,6 +595,7 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
 }
 
 /**
+ * ***Requires Localization***
  * Returns all mutator options for the block rootNode wraps in an array.
  * @param {!Blockly.ASTNode} rootNode node containing the block with mutator
  * @return {Array<HTMLElement>} an array containing all mutator options encoded
@@ -586,12 +607,14 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
   var list = [];
 
   if (block.elseifCount_ != undefined) {
+    // ***Requires Localization***
     list.push(this.makeMutatorListItem_(rootNode, 'Add elseif', block => {
       block.elseifCount_++;
       block.rebuildShape_();
     }));
 
     if (block.elseifCount_ > 0) {
+      // ***Requires Localization***
       list.push(this.makeMutatorListItem_(rootNode, 'Remove elseif',
       block => {
         block.elseifCount_--;
@@ -601,11 +624,13 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
   }
 
   if (block.elseCount_ === 0) {
+    // ***Requires Localization***
     list.push(this.makeMutatorListItem_(rootNode, 'Add else', block => {
       block.elseCount_++;
       block.rebuildShape_();
     }));
   } else if (block.elseCount_ === 1) {
+    // ***Requires Localization***
     list.push(this.makeMutatorListItem_(rootNode, 'Remove else', block => {
       block.elseCount_--;
       block.rebuildShape_();
@@ -613,12 +638,14 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
   }
 
   if (block.itemCount_ !== undefined) {
+    // ***Requires Localization***
     list.push(this.makeMutatorListItem_(rootNode, 'Add item', block => {
       block.itemCount_++;
       block.updateShape_();
     }));
 
     if (block.itemCount_ > 0) {
+      // ***Requires Localization***
       list.push(this.makeMutatorListItem_(rootNode, 'Remove item', block => {
         block.itemCount_--;
         block.updateShape_();
@@ -627,6 +654,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
   }
 
   if (block.arguments_ != undefined) {
+    // ***Requires Localization***
     list.push(this.makeMutatorListItem_(rootNode, 'Add argument', block => {
       var argname;
       if (block.arguments_.length) {
@@ -696,6 +724,7 @@ Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text,
 }
 
 /**
+ * ***Requires Localization***
  * Returns the appropriate html list item for the connection,
  * attempting to validate the connection if such a connection is possible
  * @param {!Blockly.ASTNode} rootNode the current selectedNode from which
@@ -723,6 +752,7 @@ Blockly.Linearization.prototype.makeConnListItem_ = function(rootNode,
     var label = text + ' ' + conn.getSourceBlock().makeAriaLabel();
     return this.makeBasicConnListItem_(rootNode, label);
   } else if (check === Blockly.Connection.REASON_SELF_CONNECTION) {
+    // ***Requires Localization***
     var item = Blockly.Linearization.makeListTextItem_('Cancel insert');
     item.addEventListener('click', e => {
       this.blockJoiner.connectionNode = null;
@@ -755,6 +785,7 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
 }
 
 /**
+ * ***Requires Localization***
  * Creates and returns the color-coded, linked HTML bold text of a parent block
  * used in parent-nav.
  * @param {?Blockly.ASTNode} node a parent node. If null, creates the
@@ -766,6 +797,7 @@ Blockly.Linearization.prototype.makeParentItem_ = function(node) {
   var item = document.createElement('b');
   var labelText = Blockly.Linearization.getNodeLabel(node);
   if (!node && !this.selectedNode) {
+    // ***Requires Localization***
     labelText += this.blockJoiner.blockNode? ' (move mode)': ' (summary)';
   }
   item.appendChild(document.createTextNode(labelText + ' > '));
@@ -773,6 +805,7 @@ Blockly.Linearization.prototype.makeParentItem_ = function(node) {
     item.setAttribute('style',
           'color:hsl(' + node.getLocation().getHue() + ', 40%, 40%)');
   }
+  // ***Requires Localization***
   item.setAttribute('aria-label', 'Jump to ' + labelText);
   item.addEventListener('click', e => this.listItemOnclick(node));
   return item;
@@ -812,12 +845,12 @@ Blockly.Linearization.prototype.makeInputListItem_ = function(node) {
       break;
     default: // should never happen
       console.warn('uncaught', node);
-      break;
   }
   return null;
 }
 
 /**
+ * ***Requires Localization***
  * Returns an ordered Array of linked html list items that represent the
  * movement options of the node and the node itself
  * @param {!Blockly.ASTNode} node the node to represent
@@ -834,6 +867,7 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
     try {
       prevConn.getLocation().checkConnection_(
         this.blockJoiner.blockNode.next().getLocation());
+      // ***Requires Localization***
       list.push(this.makeBasicConnListItem_(prevConn, 'Insert above'));
     } catch (e) { /* invalid connection point */ }
   }
@@ -847,6 +881,7 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
         this.blockJoiner.blockNode.prev().getLocation());
       var last = !nextConn.next() ||
           nextConn.next().getType() !== Blockly.ASTNode.types.PREVIOUS;
+      // ***Requires Localization***
       var text = last? 'Insert below': 'Insert between';
       list.push(this.makeBasicConnListItem_(node.next(), text));
     } catch (e) { /* invalid connection point */ }
@@ -876,6 +911,7 @@ Blockly.Linearization.prototype.getIfChildrenNodes_ = function(ifNode) {
 }
 
 /**
+ * ***Requires Localization***
  * Returns an ordered Array of linked html list items that represent the
  * list of branches on the if block the node contain
  * @param {!Blockly.ASTNode} node the node containing an if block to represent
@@ -886,7 +922,8 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
   var list = [];
   const inputs = node.getLocation().inputList;
   const children = node.in().sequence(n => n.next());
-  const blankText = 'NOTHING', elseText = 'else ';
+  // ***Requires Localization***
+  const elseText = 'else ';
 
   for (var i = 0; i < inputs.length; i += 2) {
     var cond, do_input, mode, condConnNode, doConnNode;
@@ -905,7 +942,7 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
 
     var text = mode;
     if (mode !== elseText) {
-      text += cond? cond.makeAriaLabel(): blankText;
+      text += cond? cond.makeAriaLabel(): this.blankText_;
       text += ' then';
     }
 
@@ -918,6 +955,7 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
         condConnNode.getLocation().checkConnection_(
           this.blockJoiner.blockNode.next().getLocation());
           bracketItem = this.makeBasicConnListItem_(condConnNode);
+          // ***Requires Localization***
           bracketItem.innerHTML = text + ' (click to fill blank)';
         } catch(e) {
           bracketItem = Blockly.Linearization.makeListTextItem_(text);
@@ -934,7 +972,7 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
           this.makeBasicConnListItem_(doConnNode, 'Insert within ' + text));
       } else {
         bracketItemList.appendChild(
-          Blockly.Linearization.makeListTextItem_(blankText));
+          Blockly.Linearization.makeListTextItem_(this.blankText_));
       }
       continue;
     }
@@ -953,6 +991,7 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
 }
 
 /**
+ * ***Requires Localization***
  * Creates and returns the standard ListElement for the block in node, labelled
  * with text equivalent to node.getLocation().makeAriaLabel().
  * Attributes include a unique id and blockId for the associated block, as well
@@ -966,6 +1005,7 @@ Blockly.Linearization.prototype.makeBasicListItem_ = function(node) {
   var block = node.getLocation();
   var text = block.makeAriaLabel();
   if (this.blockJoiner.blockIs(node)) {
+    // ***Requires Localization***
     text += ' (moving me...)';
   }
   listElem.id = "li" + block.id;
@@ -978,6 +1018,7 @@ Blockly.Linearization.prototype.makeBasicListItem_ = function(node) {
 }
 
 /**
+ * ***Requires Localization***
  * Creates and returns a textfield HTML li element linked to node's value.
  * @param {!Blockly.ASTNode} node the field or input to represent
  * @return {HTMLElement} an html list item that is edittable for number
@@ -996,6 +1037,7 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
   }
   var fieldName = field.name;
   if (field.getText() === "") {
+    // ***Requires Localization***
     listElem = Blockly.Linearization.makeListTextItem_('[Enter some text]');
   } else {
     listElem = Blockly.Linearization.makeListTextItem_(field.getText());
@@ -1017,6 +1059,7 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
 }
 
 /**
+ * ***Requires Localization***
  * Returns the html list element representing field, null if an invalid field
  * @param {!Blockly.FieldDropdown} field the field to represent
  * @return {?HTMLElement} a clickable representation of the field that toggles
@@ -1042,6 +1085,7 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
 
   var labelText = 'Field: ' + entry.option.label;
   var elem = Blockly.Linearization.makeListTextItem_(labelText);
+  // ***Requires Localization***
   elem.setAttribute('aria-label', labelText + ', click to change');
   elem.setAttribute('index', entry.i);
   elem.addEventListener('click', e => {
@@ -1053,6 +1097,7 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
       var option = makeOptObj(field.getOptions()[newIndex]);
       var newLabelText = 'Field: ' + option.label;
       var textNode = document.createTextNode(newLabelText);
+      // ***Requires Localization***
       elem.setAttribute('aria-label', newLabelText + ', click to change');
       elem.setAttribute('index', newIndex);
 
@@ -1073,6 +1118,7 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
 }
 
 /**
+ * ***Requires Localization***
  * Creates and returns a linked HTML li element linked to node's direct visual
  * parent.
  * @param {!Blockly.ASTNode} node the child node of the parent to go back to
@@ -1085,6 +1131,7 @@ Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
   while (outNode && outNode.getType() !== 'block') {
     outNode = outNode.out();
   }
+  // ***Requires Localization***
   var labelText = 'Go back to ' + Blockly.Linearization.getNodeLabel(outNode);
   returnNode.appendChild(document.createTextNode(labelText));
   returnNode.addEventListener('click', e => this.listItemOnclick(outNode));
@@ -1092,19 +1139,26 @@ Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
 }
 
 /**
+ * ***Requires Localization***
  * Creates and returns a linked HTML li element linked to a function w/return
  * node's return value block
- * @param {!Blockly.ASTNode} node the node that contains the function block
+ * @param {!Blockly.ASTNode} rootNode the node that contains the function block
+ * @param {!Blockly.ASTNode} inNode
  * @return {HTMLElement} an html list item that will navigate to the return
  * value of the block
  */
-Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode, inNode) {
+Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
+  var inNode = rootNode.in();
+  while (inNode && inNode.getType() !== Blockly.ASTNode.types.INPUT) {
+    inNode = inNode.next();
+  }
   var returnNode = inNode.sequence(n => n.next()).find(n =>
     n.getLocation().getParentInput() &&
     n.getLocation().getParentInput().type === 1);
   if (returnNode.in() && returnNode.in().next()) {
     var returnBlock = returnNode.in().next();
     var returnListItem = this.makeBasicListItem_(returnBlock);
+    // ***Requires Localization***
     returnListItem.innerHTML = 'return ' + returnListItem.innerHTML;
     return returnListItem;
   }
@@ -1113,14 +1167,17 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode, inNode) {
     try {
       returnNode.getLocation().checkConnection_(
         this.blockJoiner.blockNode.prev().getLocation());
+      // ***Requires Localization***
       return this.makeBasicConnListItem_(returnNode, 'Insert in return');
     } catch (e) { /* invalid connection point */ }
   }
 
-  return Blockly.Linearization.makeListTextItem_('return blank');
+  // ***Requires Localization***
+  return Blockly.Linearization.makeListTextItem_('return ' + this.blankText_);
 }
 
 /**
+ * ***Requires Localization***
  * Creates and returns an li element that pushes the node to this.blockJoiner
  * on click
  * @param {!Blockly.ASTNode} node the node to be moved on click
@@ -1128,6 +1185,7 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode, inNode) {
  * this.moveItemOnclick(node) when clicked.
  */
 Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
+  // ***Requires Localization***
   var text = this.blockJoiner.blockNode? 'Move me instead': 'Move me';
   var element = Blockly.Linearization.makeListTextItem_(text);
   element.addEventListener('click', e => this.moveItemOnclick(node, e));
@@ -1211,12 +1269,14 @@ Blockly.Linearization.nextStackMarker = function(marker) {
 }
 
 /**
+ * ***Requires Localization***
  * Creates and returns the aria label for node if
  * node.getLocation().makeAriaLabel is not null, 'workspace' if otherwise.
  * @param {?Blockly.ASTNode} node the node to get aria-label from
  * @return {String} the string generated by node.getLocation().makeAriaLabel()
  */
 Blockly.Linearization.getNodeLabel = function(node) {
+  // ***Requires Localization***
   return node && node.getLocation().makeAriaLabel?
       node.getLocation().makeAriaLabel(): 'workspace';
 }
