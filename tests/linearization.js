@@ -410,7 +410,7 @@ Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
 
   var descendantItems = [];
 
-  if (block.type === 'controls_if')
+  if (block.type === 'controls_if') {
     var listElems = this.makeIfListItems_(blockNode);
     var childNodes = this.getIfChildrenNodes_(blockNode);
     for (var i = 0; i < listElems.length; i++) {
@@ -429,7 +429,6 @@ Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
       descendantItems.push(listElems[i]);
       descendantItems.push(nestedItemList);
     }
-    break;
   } else {
     var listElem = this.makeBasicListItem_(blockNode);
     if (block.getSurroundParent()) {
