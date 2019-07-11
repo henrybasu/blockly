@@ -22,7 +22,8 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   this.parentNav = parentNav;
   this.mainNavList = mainNavList;
   this.blockJoiner = new Blockly.Linearization.BlockJoiner();
-  this.blankText_ = 'NOTHING'; // ***Requires Localization***
+  // ***Requires Localization***
+  this.blankText_ = 'NOTHING';
   workspace.addChangeListener(e => this.generateList_(e));
 }
 
@@ -218,7 +219,6 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
 }
 
 /**
- * ***Requires Localization***
  * Generates (and replaces) the old parent-nav bar, using color-coded, linked
  * breadcrumbs. Always includes workspace.
  * @param {!Blockly.Workspace} Current workspace
@@ -314,7 +314,6 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
 }
 
 /**
- * ***Requires Localization***
  * Generates the stack item that contains all the top-level information
  * as well as movement options for the provided stack. Designed for use during
  * move operations
@@ -345,7 +344,6 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
 }
 
 /**
- * ***Requires Localization***
  * Generates the html li that contains listings for all items in the stack
  * @param {!Blockly.ASTNode} stackNode the stack to represent
  * @return {HTMLElement} a list element describing the complete stack as
@@ -388,7 +386,6 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
 }
 
 /**
- * ***Requires Localization***
  * Takes in a block node and recursively makes the list of elements for all
  * descendant blocks.
  * Excludes inline blocks, such as those found in the repeat x times block.
@@ -459,7 +456,6 @@ Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
 }
 
 /**
- * ***Requires Localization***
  * Takes in a nesting block (e.g. if, repeat while, etc.) and returns a
  * shorthand human-readable identifier.
  * @param {Blockly.Block} block the block to find a name for
@@ -485,7 +481,6 @@ Blockly.Linearization.prototype.getNestingBlockName_ = function(block) {
 }
 
 /**
- * ***Requires Localization***
  * Creates and returns the HTML unordered list of every block on the same visual
  * indent within the rootNode, represented with list elements
  * @param {!Blockly.ASTNode} rootNode the direct parent of all items in the list
@@ -554,7 +549,6 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
 }
 
 /**
- * ***Requires Localization***
  * Returns all inner input nodes as a array of html elements, starting with
  * inNode.
  * @param {!Blockly.ASTNode} inNode the first inner input element to convert
@@ -595,7 +589,6 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
 }
 
 /**
- * ***Requires Localization***
  * Returns all mutator options for the block rootNode wraps in an array.
  * @param {!Blockly.ASTNode} rootNode node containing the block with mutator
  * @return {Array<HTMLElement>} an array containing all mutator options encoded
@@ -724,7 +717,6 @@ Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text,
 }
 
 /**
- * ***Requires Localization***
  * Returns the appropriate html list item for the connection,
  * attempting to validate the connection if such a connection is possible
  * @param {!Blockly.ASTNode} rootNode the current selectedNode from which
@@ -785,7 +777,6 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
 }
 
 /**
- * ***Requires Localization***
  * Creates and returns the color-coded, linked HTML bold text of a parent block
  * used in parent-nav.
  * @param {?Blockly.ASTNode} node a parent node. If null, creates the
@@ -850,7 +841,6 @@ Blockly.Linearization.prototype.makeInputListItem_ = function(node) {
 }
 
 /**
- * ***Requires Localization***
  * Returns an ordered Array of linked html list items that represent the
  * movement options of the node and the node itself
  * @param {!Blockly.ASTNode} node the node to represent
@@ -911,7 +901,6 @@ Blockly.Linearization.prototype.getIfChildrenNodes_ = function(ifNode) {
 }
 
 /**
- * ***Requires Localization***
  * Returns an ordered Array of linked html list items that represent the
  * list of branches on the if block the node contain
  * @param {!Blockly.ASTNode} node the node containing an if block to represent
@@ -991,7 +980,6 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
 }
 
 /**
- * ***Requires Localization***
  * Creates and returns the standard ListElement for the block in node, labelled
  * with text equivalent to node.getLocation().makeAriaLabel().
  * Attributes include a unique id and blockId for the associated block, as well
@@ -1018,7 +1006,6 @@ Blockly.Linearization.prototype.makeBasicListItem_ = function(node) {
 }
 
 /**
- * ***Requires Localization***
  * Creates and returns a textfield HTML li element linked to node's value.
  * @param {!Blockly.ASTNode} node the field or input to represent
  * @return {HTMLElement} an html list item that is edittable for number
@@ -1059,7 +1046,6 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
 }
 
 /**
- * ***Requires Localization***
  * Returns the html list element representing field, null if an invalid field
  * @param {!Blockly.FieldDropdown} field the field to represent
  * @return {?HTMLElement} a clickable representation of the field that toggles
@@ -1118,7 +1104,6 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
 }
 
 /**
- * ***Requires Localization***
  * Creates and returns a linked HTML li element linked to node's direct visual
  * parent.
  * @param {!Blockly.ASTNode} node the child node of the parent to go back to
@@ -1139,7 +1124,6 @@ Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
 }
 
 /**
- * ***Requires Localization***
  * Creates and returns a linked HTML li element linked to a function w/return
  * node's return value block
  * @param {!Blockly.ASTNode} rootNode the node that contains the function block
@@ -1177,7 +1161,6 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
 }
 
 /**
- * ***Requires Localization***
  * Creates and returns an li element that pushes the node to this.blockJoiner
  * on click
  * @param {!Blockly.ASTNode} node the node to be moved on click
@@ -1269,7 +1252,6 @@ Blockly.Linearization.nextStackMarker = function(marker) {
 }
 
 /**
- * ***Requires Localization***
  * Creates and returns the aria label for node if
  * node.getLocation().makeAriaLabel is not null, 'workspace' if otherwise.
  * @param {?Blockly.ASTNode} node the node to get aria-label from
@@ -1297,130 +1279,3 @@ Blockly.Linearization.nextInlineInput = function(node) {
   }
   return null;
 }
-
-// function getValidConnections(block) {
-//   var ws = Blockly.getMainWorkspace();
-//   var nodes = getAllValidNodesForBlock(block);
-//   var connectionList = [];
-//   for (var i = 0, node; node = nodes[i]; i++) {
-//     if (node.isConnection  ()) {
-//       var nodeBlock = node.getLocation().getSourceBlock();
-//       var nodeConnection = node.getLocation();
-//       if (!(block.getDescendants().includes(nodeBlock))) {
-//         // TODO: don't use a private function here
-//         for (var connection of block.getConnections_(false)) {
-//           if (connection.isConnectionAllowed(nodeConnection) &&
-//             (connection.targetConnection !== nodeConnection)) {
-//             connectionList.push(connection);
-//           }
-//         }
-//       }
-//     }
-//   }
-//   return connectionList;
-// }
-
-// function getAllValidNodesForBlock(block) {
-//  var ws = Blockly.getMainWorkspace();
-//  var defaultCoord = new goog.math.Coordinate(100,100);
-//  var curNode = Blockly.ASTNode.createWorkspaceNode(ws, defaultCoord);
-//  var nodes = [];
-//  do {
-//    nodes.push(curNode);
-//    curNode = treeTraversal(curNode, block);
-//  } while (curNode);
-//  return nodes;
-// }
-
-// Unused code
-
-/**
- * Returns all blocks in the main workspace encapsulated in nodes.
- * @return {Array<Blockly.ASTNode>} all possible nodes from the main workspace
- */
-// function getAllNodes() {
-//     var ws = Blockly.getMainWorkspace();
-//     var curNode = Blockly.ASTNode.createWorkspaceNode(ws, new goog.math.Coordinate(100,100));
-//     var nodes = [];
-//     do {
-//       nodes.push(curNode);
-//       curNode = treeTraversal(curNode);
-//     } while (curNode);
-//     return nodes;
-// }
-
-// /**
-//  * Decides what nodes to traverse and which ones to skip. Currently, it
-//  * skips output, stack and workspace nodes.
-//  * @param {Blockly.ASTNode} node The ast node to check whether it is valid.
-//  * @return {Boolean} True if the node should be visited, false otherwise.
-//  * @package
-//  */
-// function validNode(node) {
-//   var isValid = false;
-//   if (node && (node.getType() === Blockly.ASTNode.types.BLOCK
-//     || node.getType() === Blockly.ASTNode.types.INPUT
-//     || node.getType() === Blockly.ASTNode.types.FIELD
-//     || node.getType() === Blockly.ASTNode.types.NEXT
-//     || node.getType() === Blockly.ASTNode.types.PREVIOUS)) {
-//       isValid = true;
-//   }
-//   return isValid;
-// }
-
-// /**
-//  * From the given node find either the next valid sibling or parent.
-//  * @param {Blockly.ASTNode} node The current position in the ast.
-//  * @return {Blockly.ASTNode} The parent ast node or null if there are no
-//  * valid parents.
-//  * @package
-//  */
-// function findSiblingOrParent(node) {
-//   if (!node) {
-//     return null;
-//   }
-//   var nextNode = node.next();
-//   if (nextNode) {
-//     return nextNode;
-//   }
-//   return findSiblingOrParent(node.out());
-// }
-
-// /**
-//  * Uses pre order traversal to go navigate the blockly ast. This will allow
-//  * a user to easily navigate the entire blockly AST without having to go in
-//  * and out levels on the tree.
-//  * @param {Blockly.ASTNode} node The current position in the ast.
-//  * @return {Blockly.ASTNode} The next node in the traversal.
-//  * @package
-//  */
-// function treeTraversal(node, takeNode=validNode) {
-//   if (!node) {
-//     return null;
-//   }
-//   var newNode = node.in() || node.next();
-//   if (takeNode(newNode)) {
-//     return newNode;
-//   } else if (newNode) {
-//     return treeTraversal(newNode, takeNode);
-//   } else {
-//     var siblingOrParent = findSiblingOrParent(node);
-//     if (takeNode(siblingOrParent)) {
-//       return siblingOrParent;
-//     } else if (siblingOrParent
-//       && siblingOrParent.getType() !== Blockly.ASTNode.types.WORKSPACE) {
-//       return treeTraversal(siblingOrParent, takeNode);
-//     }
-//   }
-// }
-// /**
-//  * Finds the next node in the tree traversal starting at the location of
-//  * the cursor.
-//  * @return {Blockly.ASTNode} The next node in the traversal.
-//  * @package
-//  */
-// function findNext() {
-//     var cursor = Blockly.Navigation.cursor_;
-//     var curNode = cursor.getCurNode();
-//     return treeTraversal(curNode);
-// }
