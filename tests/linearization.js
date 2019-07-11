@@ -51,6 +51,7 @@ Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
     }
     this.connectionNode = item;
   } else {
+    console.warn('failed to push to blockjoiner', item)
     return false;
   }
 
@@ -390,56 +391,56 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
  */
 Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
     rootBlock) {
-  var descendantItems = [];
   var block = blockNode.getLocation();
-  if (blockNode.getType() === Blockly.ASTNode.types.BLOCK
-    && !(block.outputConnection && block.getParent())
-    && block.getRootBlock() === rootBlock) {
-    switch (block.type) {
-      case 'controls_if':
-        var listElems = this.makeIfListItems_(blockNode);
-        var childNodes = this.getIfChildrenNodes_(blockNode);
-        for (var i=0; i < listElems.length; i++) {
-          if (block.getSurroundParent()) {
-            listElems[i].setAttribute('aria-label', listElems[i].innerHTML
-            + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
-          }
-          listElems[i].removeChild(listElems[i].childNodes[1]);
-          var nestedItemList = document.createElement('ul');
-          if (childNodes[i]) {
-            childNodes[i].sequence(n => n.getFirstSiblingBlock())
-              .map(node => this.makeListForBlock_(node, rootBlock))
-              .forEach(items => nestedItemList.append(...items));
-          }
-          descendantItems.push(listElems[i]);
-          descendantItems.push(nestedItemList);
-        }
-        break;
-      default:
-        var listElem = this.makeBasicListItem_(blockNode);
+  var nestedName = this.getNestingBlockName_(block);
+  var endList = nestedName?
+    [Blockly.Linearization.makeListTextItem_('end ' + nestedName)]: [];
+
+  if (blockNode.getType() !== Blockly.ASTNode.types.BLOCK
+    || (block.outputConnection && block.getParent())
+    || block.getRootBlock() !== rootBlock) {
+    return endList;
+  }
+
+  var descendantItems = [];
+
+  switch (block.type) {
+    case 'controls_if':
+      var listElems = this.makeIfListItems_(blockNode);
+      var childNodes = this.getIfChildrenNodes_(blockNode);
+      for (var i = 0; i < listElems.length; i++) {
         if (block.getSurroundParent()) {
-          listElem.setAttribute('aria-label', listElem.innerHTML
-            + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+          listElems[i].setAttribute('aria-label', listElems[i].innerHTML
+          + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
         }
-        descendantItems.push(listElem);
-        if (blockNode.getFirstNestedBlock()) {
-          var nestedItemList = document.createElement('ul');
-          blockNode.getFirstNestedBlock().sequence(n => n.getFirstSiblingBlock())
+        listElems[i].removeChild(listElems[i].childNodes[1]);
+        var nestedItemList = document.createElement('ul');
+        if (childNodes[i]) {
+          childNodes[i].sequence(n => n.getFirstSiblingBlock())
             .map(node => this.makeListForBlock_(node, rootBlock))
-            .forEach(items => nestedItemList.append(...items))
-          descendantItems.push(nestedItemList);
+            .forEach(items => nestedItemList.append(...items));
         }
-        break;
-    }
+        descendantItems.push(listElems[i]);
+        descendantItems.push(nestedItemList);
+      }
+      break;
+    default:
+      var listElem = this.makeBasicListItem_(blockNode);
+      if (block.getSurroundParent()) {
+        listElem.setAttribute('aria-label', listElem.innerHTML
+          + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+      }
+      descendantItems.push(listElem);
+      if (blockNode.getFirstNestedBlock()) {
+        var nestedItemList = document.createElement('ul');
+        blockNode.getFirstNestedBlock().sequence(n => n.getFirstSiblingBlock())
+          .map(node => this.makeListForBlock_(node, rootBlock))
+          .forEach(items => nestedItemList.append(...items))
+        descendantItems.push(nestedItemList);
+      }
   }
 
-  if (this.getNestingBlockName_(block)) {
-    var endElem = Blockly.Linearization.makeListTextItem_(
-        'end ' + this.getNestingBlockName_(block));
-    descendantItems.push(endElem);
-  }
-
-  return descendantItems;
+  return descendantItems.concat(endList);
 }
 
 /**
@@ -464,10 +465,7 @@ Blockly.Linearization.prototype.getNestingBlockName_ = function(block) {
       && block.inputList[0].fieldRow[1].getText() === 'until')) {
     blockNames['controls_whileUntil'] = 'repeat until';
   }
-  if (blockNames[block.type]) {
-    return blockNames[block.type];
-  }
-  return null;
+  return blockNames[block.type];
 }
 
   /**
