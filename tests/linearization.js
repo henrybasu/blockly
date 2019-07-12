@@ -81,6 +81,7 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
       back = n => n.prev();
       break;
     case Blockly.ASTNode.types.PREVIOUS:
+    case Blockly.ASTNode.types.OUTPUT:
       advance = n => n.prev();
       back = n => n.next();
       break;
@@ -412,7 +413,7 @@ Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
 
   if (block.type === 'controls_if') {
     var listElems = this.makeIfListItems_(blockNode);
-    var childNodes = this.getIfChildrenNodes_(blockNode);
+    var childNodes = Blockly.Linearization.getIfChildrenNodes_(blockNode);
     for (var i = 0; i < listElems.length; i++) {
       if (block.getSurroundParent()) {
         // ***Requires Localization***
@@ -514,13 +515,15 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
   var inline = rootNode.getFirstInlineBlock();
   if (inline) {
     var inlineSeq = inline.sequence(Blockly.Linearization.nextInlineInput);
-    inlineSeq.map(node => this.makeInputListItem_(node))
-      .filter(Boolean)
+    inlineSeq.map(node => this.makeInputListItem_(node)).filter(Boolean)
       .forEach(elem => sublist.appendChild(elem));
   }
 
+  var isIfNode = rootNode.getLocation().type === 'controls_if';
   if (rootNode.getLocation().mutator) {
-    sublist.append(...this.makeAllMutatorItems_(rootNode));
+    if (!isIfNode || !this.selectedNode.branch || !this.selectedNode.branch.key) {
+      sublist.append(...this.makeAllMutatorItems_(rootNode));
+    }
   }
 
   var inNode = rootNode.in();
@@ -530,7 +533,7 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
 
   var firstNested = rootNode.getFirstNestedBlock();
 
-  if (rootNode.getLocation().type === 'controls_if') {
+  if (isIfNode) {
     sublist.append(...this.makeIfListItems_(rootNode));
   } else if (firstNested) {
     firstNested.sequence(n => n.getFirstSiblingBlock())
@@ -660,7 +663,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
       while (block.arguments_.includes(argname)) {
         argname += 'I';
       }
-      var newVar = workspace.createVariable(argname);
+      var newVar = this.workspace.createVariable(argname);
       block.arguments_.push(argname);
       block.argumentVarModels_.push(newVar);
       block.updateParams_();
@@ -676,7 +679,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
         if (elem.innerText === "") {
           block.arguments_.splice(block.arguments_.indexOf(arg), 1);
           block.updateParams_();
-          listItemOnclick(rootNode);
+          this.listItemOnclick(rootNode);
         } else {
           var argModel = block.getVarModels()[block.arguments_.indexOf(arg)];
           workspace.renameVariableById(argModel.getId(), elem.innerText);
@@ -879,26 +882,6 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
   return list;
 }
 
-Blockly.Linearization.prototype.getIfChildrenNodes_ = function(ifNode) {
-  const children = ifNode.in().sequence(n => n.next());
-  const inputs = ifNode.getLocation().inputList;
-  var childrenNodes = [];
-  for (var i = 0; i < inputs.length; i += 2) {
-    if (i == inputs.length - 1) {
-      var index = i;
-    } else {
-      var index = i+1;
-    }
-
-    if (children[index].in()) {
-      childrenNodes.push(children[index].in().next());
-    } else {
-      childrenNodes.push(null);
-    }
-  }
-  return childrenNodes;
-}
-
 /**
  * Returns an ordered Array of linked html list items that represent the
  * list of branches on the if block the node contain
@@ -911,68 +894,54 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
   const inputs = node.getLocation().inputList;
   const children = node.in().sequence(n => n.next());
   // ***Requires Localization***
-  const elseText = 'else ';
-
-  for (var i = 0; i < inputs.length; i += 2) {
-    var cond, do_input, mode, condConnNode, doConnNode;
-    if (i == inputs.length - 1) {
-      do_input = inputs[i].connection.targetBlock();
-      doConnNode = children[i];
-      condConnNode = null;
-      mode = elseText;
-    } else {
-      cond = inputs[i].connection.targetBlock();
-      condConnNode = children[i];
-      do_input = inputs[i + 1].connection.targetBlock();
-      doConnNode = children[i + 1];
-      mode = (i > 0? elseText: '') + 'if ';
+  const branches = Blockly.Linearization.getIfBranches_(node);
+  for (let branch of branches) {
+    if (node.branch && node.branch.key != branch.key) {
+      continue;
     }
-
-    var text = mode;
-    if (mode !== elseText) {
-      text += cond? cond.makeAriaLabel(): this.blankText_;
-      text += ' then';
+    var text = branch.type;
+    if (text !== 'else'){
+      text += ' ';
+      text += branch.condNode?
+          branch.condNode.getLocation().makeAriaLabel():
+          this.blankText_;
+      text += ' do';
     }
 
     var bracketItem;
-    if (condConnNode && condConnNode.in() && condConnNode.in().next()) {
-      bracketItem = this.makeBasicListItem_(condConnNode.in().next());
+    if (branch.condNode) {
+      bracketItem = this.makeBasicListItem_(branch.condNode);
       bracketItem.innerHTML = text;
     } else {
       try {
-        condConnNode.getLocation().checkConnection_(
-          this.blockJoiner.blockNode.next().getLocation());
-          bracketItem = this.makeBasicConnListItem_(condConnNode);
-          // ***Requires Localization***
-          bracketItem.innerHTML = text + ' (click to fill blank)';
-        } catch(e) {
-          bracketItem = Blockly.Linearization.makeListTextItem_(text);
-        }
+        var potential = this.blockJoiner.blockNode.prev();
+        branch.condConnection.checkConnection_(potential.getLocation());
+        // ***Requires Localization***
+        bracketItem = this.makeBasicConnListItem_(potential,
+            text + ' (click to fill blank)');
+      } catch(e) {
+        bracketItem = this.makeBasicListItem_(node, branch);
+        bracketItem.innerHTML = text;
+        e instanceof TypeError || console.log(e);
+      }
     }
 
     var bracketItemList = document.createElement('ul');
     bracketItem.appendChild(bracketItemList);
     list.push(bracketItem);
 
-    if (!do_input) {
-      if (this.blockJoiner.blockNode) {
-        bracketItemList.appendChild(
-          this.makeBasicConnListItem_(doConnNode, 'Insert within ' + text));
-      } else {
-        bracketItemList.appendChild(
-          Blockly.Linearization.makeListTextItem_(this.blankText_));
-      }
-      continue;
+    if (branch.bodyNode) {
+      branch.bodyNode.sequence(n => n.getFirstSiblingBlock())
+        .map(node => this.makeNodeListItems_(node))
+        .forEach(items => bracketItemList.append(...items));
+    } else if (this.blockJoiner.blockNode) {
+      var bodyConnNode = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
+      var listItem = this.makeBasicConnListItem_(bodyConnNode, 'Insert within ' + text);
+      bracketItemList.appendChild(listItem);
+    } else {
+      bracketItemList.appendChild(
+        Blockly.Linearization.makeListTextItem_(this.blankText_));
     }
-
-    var firstNode = Blockly.ASTNode.createBlockNode(do_input);
-    if (firstNode.getType() !== Blockly.ASTNode.types.BLOCK) {
-      firstNode = firstNode.getFirstSiblingBlock();
-    }
-
-    firstNode.sequence(n => n.getFirstSiblingBlock())
-      .map(node => this.makeNodeListItems_(node))
-      .forEach(items => bracketItemList.append(...items));
   }
 
   return list;
@@ -982,12 +951,13 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
  * Creates and returns the standard ListElement for the block in node, labelled
  * with text equivalent to node.getLocation().makeAriaLabel().
  * Attributes include a unique id and blockId for the associated block, as well
- * adding the standard listItemOnclick(node) event listener on click.
+ * adding the standard listItemOnclick(node, branch) event listener on click.
  * @param {!Blockly.ASTNode} node the block to represent
+ * @param {?Object} branch the if branch to navigate to
  * @return {HTMLElement} an linked html list item representation of node
  * @private
  */
-Blockly.Linearization.prototype.makeBasicListItem_ = function(node) {
+Blockly.Linearization.prototype.makeBasicListItem_ = function(node, branch) {
   var listElem = document.createElement('li');
   var block = node.getLocation();
   var text = block.makeAriaLabel();
@@ -998,7 +968,7 @@ Blockly.Linearization.prototype.makeBasicListItem_ = function(node) {
   listElem.id = "li" + block.id;
   listElem.blockId = block.id;
   listElem.appendChild(document.createTextNode(text));
-  listElem.addEventListener('click', e => this.listItemOnclick(node));
+  listElem.addEventListener('click', e => this.listItemOnclick(node, branch));
   listElem.setAttribute('style',
           'color:hsl(' + node.getLocation().getHue() + ', 40%, 40%)');
   return listElem;
@@ -1195,10 +1165,14 @@ Blockly.Linearization.prototype.moveItemOnclick = function(node, e) {
  * The standard onclick action for ListElements. Highlights the node's block if
  * node is not null, sets the selectedNode to node, and calls generateList_().
  * @param {?Blockly.ASTNode} node the node to navigate to and highlight
+ * @param {Object=} branch null by default, the if-branch to display
  */
-Blockly.Linearization.prototype.listItemOnclick = function(node) {
+Blockly.Linearization.prototype.listItemOnclick = function(node, branch=null) {
   this.highlightBlock(node && node.getLocation());
   this.selectedNode = node;
+  if (node) {
+    this.selectedNode.branch = branch;
+  }
   this.generateList_();
 }
 
@@ -1277,4 +1251,52 @@ Blockly.Linearization.nextInlineInput = function(node) {
     return next;
   }
   return null;
+}
+
+/**
+ * Returns the list of first children in the body of each branch of the if,
+ * in the order they appear on the if block
+ * @param {!Blockly.ASTNode} ifNode the node containing the if block
+ * @return {Array<Blockly.ASTNode>} the list of children in each do block
+ * from the top of the block to the bottom
+ */
+Blockly.Linearization.getIfChildrenNodes_ = function(ifNode) {
+  return Blockly.Linearization.getIfBranches_(ifNode).map(n => n.bodyNode);
+}
+
+/**
+ * Returns the list of objects representing each branch of the if in order
+ * @param {!Blockly.ASTNode} ifNode the node containing the if block
+ * @return {Array<Object>} the list of branches
+ */
+Blockly.Linearization.getIfBranches_ = function(ifNode) {
+  const children = ifNode.in().sequence(n => n.next());
+  const inputs = ifNode.getLocation().inputList;
+  var branches = [];
+  for (var i = 0; i < inputs.length; i += 2) {
+    var branch = {key: i/2};
+    if (i == inputs.length - 1) {
+      // ***Requires Localization***
+      branch.type = 'else';
+      branch.bodyIndex = i;
+    } else {
+      // ***Requires Localization***
+      branch.type = i? 'else if': 'if';
+
+      branch.condIndex = i;
+      branch.condConnection = children[i].getLocation();
+      var condItem = children[i] && children[i].in();
+      branch.condNode = condItem && condItem.next();
+
+      branch.bodyIndex = i + 1;
+    }
+
+    branch.bodyConnection = children[branch.bodyIndex].getLocation();
+    var bodyItem = children[branch.bodyIndex].in();
+    branch.bodyNode = bodyItem && bodyItem.next();
+
+    branches.push(branch);
+  }
+
+  return branches;
 }
