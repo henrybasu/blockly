@@ -6,17 +6,40 @@
 goog.provide('Blockly.Linearization');
 goog.provide('Blockly.Linearization.BlockJoiner');
 
+// regex selector and replace, only works with single line arg lists, 40 targets
+//(\w+)( = function\(.*\)\s*\{)
+//$1$2\n  if(!counter.$1) counter.$1 = [];\n  counter.$1.push(new Error(arguments).stack);\n
 var counter = {
   summarize: function() {
+    this.fillAllFields();
+    this.keys().map(k => [k, this[k]]).sort((a, b) => a[1].length - b[1].length).forEach(o => console.log(o[0], o[1].length));
+  },
+  fillAllFields: function() {
+    for (var name in workspace.linearization.blockJoiner) {
+      if (typeof workspace.linearization.blockJoiner[name] !== 'function') {
+        continue;
+      }
+      if (!this[name]) {
+        this[name] = [];
+      }
+    }
+    for (var name in workspace.linearization) {
+      if (typeof workspace.linearization[name] !== 'function') {
+        continue;
+      }
+      if (!this[name]) {
+        this[name] = [];
+      }
+    }
+  },
+  dump: function() {
     for (let prop in this) {
       console.log(prop, this[prop]);
     }
   },
   keys: function() {
-    return Object.keys(this);
-  },
-  count: function() {
-    return this.keys().length;
+    return Object.keys(this)
+      .filter(k => !['keys', 'dump', 'fillAllFields', 'summarize'].includes(k));
   }
 };
 
@@ -143,6 +166,7 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
 }
 
 /**
+ * ONLY USED ONCE!
  * Attempts to disconnect the current block in this.blockNode and put in on the
  * workspace. Nulls this.blockNode if successful
  */
@@ -162,6 +186,7 @@ Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
 }
 
 /**
+ * ONLY USED ONCE!
  * Checks if the block in this.blockNode is equal to the block in node
  * @param {Blockly.ASTNode} node the node to compare to
  * @return {Boolean} true if they contain the same block and are not null, false
@@ -446,8 +471,10 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
  * @return {Array<HTMLElement>} an array containing all elements for descendants
  * @private
  */
-Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
-    rootBlock) {
+Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode, rootBlock) {
+  if(!counter.makeListForBlock_) counter.makeListForBlock_ = [];
+  counter.makeListForBlock_.push(new Error(arguments).stack);
+
   var block = blockNode.getLocation();
   var nestedName = this.getNestingBlockName_(block);
   // ***Requires Localization***
@@ -776,8 +803,10 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
  * by rootNode and text, with onclick behavior innerFn(rootNode.getLocation())
  * @private
  */
-Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text,
-    innerFn) {
+Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text, innerFn) {
+  if(!counter.makeMutatorListItem_) counter.makeMutatorListItem_ = [];
+  counter.makeMutatorListItem_.push(new Error(arguments).stack);
+
   var block = rootNode.getLocation();
   var elem = Blockly.Linearization.makeListTextItem_(text);
   elem.addEventListener('click', e => {
@@ -788,6 +817,7 @@ Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text,
 }
 
 /**
+ * ONLY USED ONCE!
  * Returns the appropriate html list item for the connection,
  * attempting to validate the connection if such a connection is possible
  * @param {!Blockly.ASTNode} rootNode the current selectedNode from which
@@ -802,8 +832,10 @@ Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text,
  * potential connection
  * @private
  */
-Blockly.Linearization.prototype.makeConnListItem_ = function(rootNode,
-    candidate, text, alttext) {
+Blockly.Linearization.prototype.makeConnListItem_ = function(rootNode, candidate, text, alttext) {
+  if(!counter.makeConnListItem_) counter.makeConnListItem_ = [];
+  counter.makeConnListItem_.push(new Error(arguments).stack);
+
   var connNode = this.blockJoiner.connectionNode;
   if (!connNode) {
       return this.makeBasicConnListItem_(candidate, alttext);
