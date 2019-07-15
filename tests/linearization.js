@@ -39,7 +39,11 @@ var counter = {
   },
   keys: function() {
     return Object.keys(this)
-      .filter(k => !['keys', 'dump', 'fillAllFields', 'summarize'].includes(k));
+      .filter(k => !['makeCoverageHook', 'keys', 'dump', 'fillAllFields', 'summarize'].includes(k));
+  },
+  makeCoverageHook: function(name) {
+    return '  if (!counter.' + name + ') counter.' + name +
+      ' = [];\n  counter.' + name + '.push(new Error(arguments).stack)\n';
   }
 };
 
