@@ -518,13 +518,13 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
   }
 
   var inline = rootNode.getFirstInlineBlock();
-  if (inline) {
+  var isIfNode = rootNode.getLocation().type === 'controls_if';
+  if (inline && !isIfNode) {
     var inlineSeq = inline.sequence(Blockly.Linearization.nextInlineInput);
     inlineSeq.map(node => this.makeInputListItem_(node)).filter(Boolean)
       .forEach(elem => sublist.appendChild(elem));
   }
 
-  var isIfNode = rootNode.getLocation().type === 'controls_if';
   if (rootNode.getLocation().mutator && (!isIfNode || showOnBranch)) {
     sublist.append(...this.makeAllMutatorItems_(rootNode));
   }
@@ -897,16 +897,17 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
+  const branches = node.branch? [node.branch]:
+      Blockly.Linearization.getIfBranches(node);
   var list = [];
-  // ***Requires Localization***
-  const branches = Blockly.Linearization.getIfBranches(node);
-  for (let branch of branches) {
-    if (node.branch && node.branch.key != branch.key) {
-      continue;
-    }
 
+  if (node.branch) {
+    list.push(this.makeBasicListItem_(node.branch.condNode));
+  }
+
+  for (let branch of branches) {
     var text = branch.type;
-    if (text !== 'else'){
+    if (text !== 'else') {
       text += ' ';
       text += branch.condNode?
           branch.condNode.getLocation().makeAriaLabel():
@@ -940,8 +941,8 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
     }
 
     if (this.blockJoiner.blockNode) {
-      var bodyConnNode = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
-      var listItem = this.makeBasicConnListItem_(bodyConnNode, 'Insert within ' + text);
+      var body = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
+      var listItem = this.makeBasicConnListItem_(body, 'Insert within ' + text);
       bracketItemList.appendChild(listItem);
       continue;
     }
