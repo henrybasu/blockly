@@ -566,30 +566,30 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
     return [];
   }
   var inNodeSeq = inNode.sequence(n => n.next());
-  var counter = {
+  var tracker = {
     tackVal: 1,
     insertVal: 1,
     tackText: function() {
-      if (counter.tackVal === 1 && inNodeSeq.length <= 1) {
-        counter.tackVal++;
+      if (tracker.tackVal === 1 && inNodeSeq.length <= 1) {
+        tracker.tackVal++;
         return '';
       }
-      return inNodeSeq.length <= 1? '': ' ' + counter.tackVal++;
+      return inNodeSeq.length <= 1? '': ' ' + tracker.tackVal++;
     },
     insertText: function() {
-      if (counter.insertVal === 1 && inNodeSeq.length <= 1) {
-        counter.insertVal++;
+      if (tracker.insertVal === 1 && inNodeSeq.length <= 1) {
+        tracker.insertVal++;
         return '';
       }
-      return inNodeSeq.length <= 1? '': ' ' + counter.insertVal++;
+      return inNodeSeq.length <= 1? '': ' ' + tracker.insertVal++;
     }
   }
   return inNodeSeq.map(n => this.makeBasicConnListItem_(
             n,
             // ***Requires Localization***
             n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
-                'Tack on side' + counter.tackText():
-                'Insert within' + counter.insertText())
+                'Tack on side' + tracker.tackText():
+                'Insert within' + tracker.insertText())
           );
 }
 
