@@ -6,6 +6,20 @@
 goog.provide('Blockly.Linearization');
 goog.provide('Blockly.Linearization.BlockJoiner');
 
+var counter = {
+  summarize: function() {
+    for (let prop in this) {
+      console.log(prop, this[prop]);
+    }
+  },
+  keys: function() {
+    return Object.keys(this);
+  },
+  count: function() {
+    return this.keys().length;
+  }
+};
+
 /**
  * Class for generating the linearization of a workspace, displayed in
  * parent nav and mainNavList.
@@ -18,6 +32,9 @@ goog.provide('Blockly.Linearization.BlockJoiner');
  * linearization of workspace within
  */
 Blockly.Linearization = function(workspace, parentNav, mainNavList) {
+  if(!counter.Linearization) counter.Linearization = [];
+  counter.Linearization.push(new Error(arguments).stack);
+
   this.workspace = workspace;
   this.parentNav = parentNav;
   this.mainNavList = mainNavList;
@@ -33,6 +50,9 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
  * @constructor
  */
 Blockly.Linearization.BlockJoiner = function() {
+  if(!counter.BlockJoiner) counter.BlockJoiner = [];
+  counter.BlockJoiner.push(new Error(arguments).stack);
+
   this.blockNode = null;
   this.connectionNode = null;
 }
@@ -44,6 +64,9 @@ Blockly.Linearization.BlockJoiner = function() {
  * @return {boolean} true if successfully pushed, false if request fails
  */
 Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
+  if(!counter.push) counter.push = [];
+  counter.push.push(new Error(arguments).stack);
+
   if (item.getLocation() instanceof Blockly.Block) {
     this.blockNode = item;
   } else if (item.getLocation() instanceof Blockly.Connection) {
@@ -67,6 +90,9 @@ Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
  * @private
  */
 Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
+  if(!counter.service_) counter.service_ = [];
+  counter.service_.push(new Error(arguments).stack);
+
   if (!(this.blockNode && this.connectionNode)) {
     return;
   }
@@ -121,6 +147,9 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
  * workspace. Nulls this.blockNode if successful
  */
 Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
+  if(!counter.disconnectBlock) counter.disconnectBlock = [];
+  counter.disconnectBlock.push(new Error(arguments).stack);
+
   if (!this.blockNode) {
     return;
   }
@@ -139,6 +168,9 @@ Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
  * otherwise
  */
 Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
+  if(!counter.blockIs) counter.blockIs = [];
+  counter.blockIs.push(new Error(arguments).stack);
+
   return this.blockNode && node && this.blockNode.getLocation().id != undefined
     && this.blockNode.getLocation().id === node.getLocation().id;
 };
@@ -151,6 +183,9 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.generateList_ = function(e) {
+  if(!counter.generateList_) counter.generateList_ = [];
+  counter.generateList_.push(new Error(arguments).stack);
+
   var workspace = this.workspace;
   if (!workspace.getAllBlocks().length) {
     this.mainNavList.innerHTML = '';
@@ -181,6 +216,9 @@ Blockly.Linearization.prototype.generateList_ = function(e) {
  * @private
  */
 Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
+  if(!counter.alterSelectedWithEvent_) counter.alterSelectedWithEvent_ = [];
+  counter.alterSelectedWithEvent_.push(new Error(arguments).stack);
+
   var workspace = this.workspace;
   var node;
   switch (e.type) {
@@ -228,6 +266,9 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
  * @private
  */
 Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
+  if(!counter.generateParentNav_) counter.generateParentNav_ = [];
+  counter.generateParentNav_.push(new Error(arguments).stack);
+
   var pNav = this.parentNav;
   pNav.innerHTML = '';
   pNav.appendChild(this.makeParentItem_());
@@ -295,6 +336,9 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
  * @private
  */
 Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
+  if(!counter.makeWorkspaceList_) counter.makeWorkspaceList_ = [];
+  counter.makeWorkspaceList_.push(new Error(arguments).stack);
+
   var workspace = this.workspace;
   var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
   var wsList = document.createElement('ul');
@@ -323,6 +367,9 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
  * a color-coded, linked sublist
  */
 Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
+  if(!counter.makePartialStackItem_) counter.makePartialStackItem_ = [];
+  counter.makePartialStackItem_.push(new Error(arguments).stack);
+
   var stackItem = document.createElement('li');
   // ***Requires Localization***
   stackItem.appendChild(document.createTextNode('Stack ' + this.marker));
@@ -351,6 +398,9 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
  * a color-coded, linked sublist
  */
 Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
+  if(!counter.makeFullStackItem_) counter.makeFullStackItem_ = [];
+  counter.makeFullStackItem_.push(new Error(arguments).stack);
+
   var stackItem = document.createElement('li');
   var oldName = '';
   // ***Requires Localization***
@@ -464,6 +514,9 @@ Blockly.Linearization.prototype.makeListForBlock_ = function(blockNode,
  * @private
  */
 Blockly.Linearization.prototype.getNestingBlockName_ = function(block) {
+  if(!counter.getNestingBlockName_) counter.getNestingBlockName_ = [];
+  counter.getNestingBlockName_.push(new Error(arguments).stack);
+
   // ***Requires Localization***
   var blockNames = {
     'controls_if': 'if',
@@ -490,6 +543,9 @@ Blockly.Linearization.prototype.getNestingBlockName_ = function(block) {
  * @private
  */
 Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
+  if(!counter.makeNodeList_) counter.makeNodeList_ = [];
+  counter.makeNodeList_.push(new Error(arguments).stack);
+
   var sublist = document.createElement('ul');
   sublist.appendChild(this.makeGoBackItem_(rootNode));
 
@@ -562,34 +618,37 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
  * @private
  */
 Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
+  if(!counter.makeAllInnerInputItems_) counter.makeAllInnerInputItems_ = [];
+  counter.makeAllInnerInputItems_.push(new Error(arguments).stack);
+
   if (!this.blockJoiner.blockNode) {
     return [];
   }
   var inNodeSeq = inNode.sequence(n => n.next());
-  var counter = {
+  var tracker = {
     tackVal: 1,
     insertVal: 1,
     tackText: function() {
-      if (counter.tackVal === 1 && inNodeSeq.length <= 1) {
-        counter.tackVal++;
+      if (tracker.tackVal === 1 && inNodeSeq.length <= 1) {
+        tracker.tackVal++;
         return '';
       }
-      return inNodeSeq.length <= 1? '': ' ' + counter.tackVal++;
+      return inNodeSeq.length <= 1? '': ' ' + tracker.tackVal++;
     },
     insertText: function() {
-      if (counter.insertVal === 1 && inNodeSeq.length <= 1) {
-        counter.insertVal++;
+      if (tracker.insertVal === 1 && inNodeSeq.length <= 1) {
+        tracker.insertVal++;
         return '';
       }
-      return inNodeSeq.length <= 1? '': ' ' + counter.insertVal++;
+      return inNodeSeq.length <= 1? '': ' ' + tracker.insertVal++;
     }
   }
   return inNodeSeq.map(n => this.makeBasicConnListItem_(
             n,
             // ***Requires Localization***
             n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
-                'Tack on side' + counter.tackText():
-                'Insert within' + counter.insertText())
+                'Tack on side' + tracker.tackText():
+                'Insert within' + tracker.insertText())
           );
 }
 
@@ -601,6 +660,9 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
  * @private
  */
 Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
+  if(!counter.makeAllMutatorItems_) counter.makeAllMutatorItems_ = [];
+  counter.makeAllMutatorItems_.push(new Error(arguments).stack);
+
   var block = rootNode.getLocation();
   var list = [];
 
@@ -776,6 +838,9 @@ Blockly.Linearization.prototype.makeConnListItem_ = function(rootNode,
  * @private
  */
 Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
+  if(!counter.makeBasicConnListItem_) counter.makeBasicConnListItem_ = [];
+  counter.makeBasicConnListItem_.push(new Error(arguments).stack);
+
   var item = Blockly.Linearization.makeListTextItem_(text);
   var connection = node.getLocation();
   item.id = "li" + connection.id;
@@ -794,6 +859,9 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
  * @private
  */
 Blockly.Linearization.prototype.makeParentItem_ = function(node) {
+  if(!counter.makeParentItem_) counter.makeParentItem_ = [];
+  counter.makeParentItem_.push(new Error(arguments).stack);
+
   var item = document.createElement('b');
   var labelText = Blockly.Linearization.getNodeLabel(node);
   if (!node && !this.selectedNode) {
@@ -818,6 +886,9 @@ Blockly.Linearization.prototype.makeParentItem_ = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.makeInputListItem_ = function(node) {
+  if(!counter.makeInputListItem_) counter.makeInputListItem_ = [];
+  counter.makeInputListItem_.push(new Error(arguments).stack);
+
   var location = node.getLocation();
   switch (node.getType()) {
     case Blockly.ASTNode.types.FIELD:
@@ -857,6 +928,9 @@ Blockly.Linearization.prototype.makeInputListItem_ = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
+  if(!counter.makeNodeListItems_) counter.makeNodeListItems_ = [];
+  counter.makeNodeListItems_.push(new Error(arguments).stack);
+
   var list = [];
 
   var disp = this.blockJoiner.blockNode !== node && this.blockJoiner.blockNode;
@@ -897,6 +971,9 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
+  if(!counter.makeIfListItems_) counter.makeIfListItems_ = [];
+  counter.makeIfListItems_.push(new Error(arguments).stack);
+
   const branches = node.branch? [node.branch]:
       Blockly.Linearization.getIfBranches(node);
   var list = [];
@@ -972,6 +1049,9 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.makeBasicListItem_ = function(node, branch) {
+  if(!counter.makeBasicListItem_) counter.makeBasicListItem_ = [];
+  counter.makeBasicListItem_.push(new Error(arguments).stack);
+
   var listElem = document.createElement('li');
   var block = node.getLocation();
   var text = block.makeAriaLabel();
@@ -996,6 +1076,9 @@ Blockly.Linearization.prototype.makeBasicListItem_ = function(node, branch) {
  * @private
  */
 Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
+  if(!counter.makeEditableFieldItem_) counter.makeEditableFieldItem_ = [];
+  counter.makeEditableFieldItem_.push(new Error(arguments).stack);
+
   var listElem;
   try {
     var field = node.fieldRow[0];
@@ -1035,6 +1118,9 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
  * options through the dropdown option list. If there are no options, null.
  */
 Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
+  if(!counter.makeDropdownItem_) counter.makeDropdownItem_ = [];
+  counter.makeDropdownItem_.push(new Error(arguments).stack);
+
   var options = field.getOptions();
   if (!options.length) {
     return null;
@@ -1094,6 +1180,9 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
  * visual parent block
  */
 Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
+  if(!counter.makeGoBackItem_) counter.makeGoBackItem_ = [];
+  counter.makeGoBackItem_.push(new Error(arguments).stack);
+
   var returnNode = document.createElement('li');
   var outNode = node.out();
   while (outNode && outNode.getType() !== 'block') {
@@ -1115,6 +1204,9 @@ Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
  * value of the block
  */
 Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
+  if(!counter.makeReturnItem_) counter.makeReturnItem_ = [];
+  counter.makeReturnItem_.push(new Error(arguments).stack);
+
   var inNode = rootNode.in();
   while (inNode && inNode.getType() !== Blockly.ASTNode.types.INPUT) {
     inNode = inNode.next();
@@ -1151,6 +1243,9 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
  * this.moveItemOnclick(node) when clicked.
  */
 Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
+  if(!counter.makeMoveItem_) counter.makeMoveItem_ = [];
+  counter.makeMoveItem_.push(new Error(arguments).stack);
+
   // ***Requires Localization***
   var text = this.blockJoiner.blockNode? 'Move me instead': 'Move me';
   var element = Blockly.Linearization.makeListTextItem_(text);
@@ -1164,6 +1259,9 @@ Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
  * @param {!Blockly.ASTNode} node the node to be pushed
  */
 Blockly.Linearization.prototype.moveItemOnclick = function(node, e) {
+  if(!counter.moveItemOnclick) counter.moveItemOnclick = [];
+  counter.moveItemOnclick.push(new Error(arguments).stack);
+
   try {
     var successfulConnection = this.blockJoiner.push(node);
     if (successfulConnection) {
@@ -1182,6 +1280,9 @@ Blockly.Linearization.prototype.moveItemOnclick = function(node, e) {
  * @param {Object=} branch null by default, the if-branch to display
  */
 Blockly.Linearization.prototype.listItemOnclick = function(node, branch=null) {
+  if(!counter.listItemOnclick) counter.listItemOnclick = [];
+  counter.listItemOnclick.push(new Error(arguments).stack);
+
   this.highlightBlock(node && node.getLocation());
   this.selectedNode = node;
   if (node) {
@@ -1195,6 +1296,9 @@ Blockly.Linearization.prototype.listItemOnclick = function(node, branch=null) {
  * @param {?Blockly.ASTNode} block block to highlight, null if none
  */
 Blockly.Linearization.prototype.highlightBlock = function(block) {
+  if(!counter.highlightBlock) counter.highlightBlock = [];
+  counter.highlightBlock.push(new Error(arguments).stack);
+
   this.clearHighlighted();
   if (block) {
     block.setHighlighted(true);
@@ -1206,6 +1310,9 @@ Blockly.Linearization.prototype.highlightBlock = function(block) {
  * Unhighlights lastHighlighted, if lastHighlighted is not null.
  */
 Blockly.Linearization.prototype.clearHighlighted = function() {
+  if(!counter.clearHighlighted) counter.clearHighlighted = [];
+  counter.clearHighlighted.push(new Error(arguments).stack);
+
   if (this.lastHighlighted) {
     this.lastHighlighted.setHighlighted(false);
   }
@@ -1218,6 +1325,9 @@ Blockly.Linearization.prototype.clearHighlighted = function() {
  * @private
  */
 Blockly.Linearization.makeListTextItem_ = function(text) {
+  if(!counter.makeListTextItem_) counter.makeListTextItem_ = [];
+  counter.makeListTextItem_.push(new Error(arguments).stack);
+
   var listElem = document.createElement('li');
   listElem.appendChild(document.createTextNode(text));
   return listElem;
@@ -1230,6 +1340,9 @@ Blockly.Linearization.makeListTextItem_ = function(text) {
  * @return {String} the next label after marker in lexicographic order
  */
 Blockly.Linearization.nextStackMarker = function(marker) {
+  if(!counter.nextStackMarker) counter.nextStackMarker = [];
+  counter.nextStackMarker.push(new Error(arguments).stack);
+
   var lastIndex = marker.length - 1;
   var prefix = marker.slice(0, lastIndex);
   if (marker.charCodeAt(lastIndex) === 'Z'.charCodeAt(0)) {
@@ -1245,6 +1358,9 @@ Blockly.Linearization.nextStackMarker = function(marker) {
  * @return {String} the string generated by node.getLocation().makeAriaLabel()
  */
 Blockly.Linearization.getNodeLabel = function(node) {
+  if(!counter.getNodeLabel) counter.getNodeLabel = [];
+  counter.getNodeLabel.push(new Error(arguments).stack);
+
   // ***Requires Localization***
   return node && node.getLocation().makeAriaLabel?
       node.getLocation().makeAriaLabel(): 'workspace';
@@ -1256,6 +1372,9 @@ Blockly.Linearization.getNodeLabel = function(node) {
  * @return {Blockly.ASTNode} the first inline sibling after node, null if none.
  */
 Blockly.Linearization.nextInlineInput = function(node) {
+  if(!counter.nextInlineInput) counter.nextInlineInput = [];
+  counter.nextInlineInput.push(new Error(arguments).stack);
+
   var next = node.next();
   if (next && next.getType() === Blockly.ASTNode.types.FIELD) {
     return next;
@@ -1275,6 +1394,9 @@ Blockly.Linearization.nextInlineInput = function(node) {
  * from the top of the block to the bottom
  */
 Blockly.Linearization.getIfChildrenNodes_ = function(ifNode) {
+  if(!counter.getIfChildrenNodes_) counter.getIfChildrenNodes_ = [];
+  counter.getIfChildrenNodes_.push(new Error(arguments).stack);
+
   return Blockly.Linearization.getIfBranches(ifNode).map(n => n.bodyNode);
 }
 
@@ -1284,6 +1406,9 @@ Blockly.Linearization.getIfChildrenNodes_ = function(ifNode) {
  * @return {Array<Object>} the list of branches
  */
 Blockly.Linearization.getIfBranches = function(ifNode) {
+  if(!counter.getIfBranches) counter.getIfBranches = [];
+  counter.getIfBranches.push(new Error(arguments).stack);
+
   const children = ifNode.in().sequence(n => n.next());
   var branches = [];
   for (var i = 0; i < children.length; i += 2) {
