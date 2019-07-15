@@ -196,7 +196,6 @@ Blockly.BlockSvg.prototype.makeAriaLabel = function() {
   return lab.trim();
 }
 
-// NOTE: I ADDED THIS, NOT PART OF ORIGINAL LIBRARY
 /**
 *  Recursively updates aria-label for block and its parents
 *  @param {Blockly.Block} block The block to get text from.

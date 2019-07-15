@@ -352,12 +352,13 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
  */
 Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
   var stackItem = document.createElement('li');
+  var oldName = '';
   // ***Requires Localization***
   var stackElem =
       Blockly.Linearization.makeListTextItem_('Stack ' + this.marker);
   stackElem.contentEditable = true;
   stackElem.addEventListener('focus', (e) => {
-    var oldName = stackElem.innerText.slice(6);
+    oldName = stackElem.innerText.slice(6);
     stackElem.innerText = oldName;
   });
   stackElem.addEventListener('blur', (e) => {

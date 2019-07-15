@@ -99,7 +99,8 @@ Blockly.Events.Change = function(block, element, name, oldValue, newValue) {
   this.newValue = newValue;
   if (this.element === 'field') {
     Blockly.Events.disable();
-    block.setFieldValue(this.newValue, this.name);
+    var field = block.getField(name);
+    field.setText(newValue);
     Blockly.Events.enable();
   }
   block.updateLabel();
