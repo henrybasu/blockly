@@ -351,12 +351,13 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
  */
 Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
   var stackItem = document.createElement('li');
+  var oldName = '';
   // ***Requires Localization***
   var stackElem =
       Blockly.Linearization.makeListTextItem_('Stack ' + this.marker);
   stackElem.contentEditable = true;
   stackElem.addEventListener('focus', (e) => {
-    var oldName = stackElem.innerText.slice(6);
+    oldName = stackElem.innerText.slice(6);
     stackElem.innerText = oldName;
   });
   stackElem.addEventListener('blur', (e) => {
@@ -660,7 +661,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
       while (block.arguments_.includes(argname)) {
         argname += 'I';
       }
-      var newVar = workspace.createVariable(argname);
+      var newVar = this.workspace.createVariable(argname);
       block.arguments_.push(argname);
       block.argumentVarModels_.push(newVar);
       block.updateParams_();
