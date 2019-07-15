@@ -491,10 +491,14 @@ Blockly.Linearization.prototype.getNestingBlockName_ = function(block) {
 Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
   var sublist = document.createElement('ul');
   sublist.appendChild(this.makeGoBackItem_(rootNode));
-  sublist.appendChild(this.makeMoveItem_(rootNode));
+
+  var showOnBranch = !this.selectedNode.branch || !this.selectedNode.branch.key;
+  if (showOnBranch) {
+    sublist.appendChild(this.makeMoveItem_(rootNode));
+  }
 
   var warning = rootNode.getLocation().warning;
-  if (warning && warning.getText && warning.getText().length) {
+  if (warning && warning.getText && warning.getText().trim().length) {
     var warnItem = Blockly.Linearization.makeListTextItem_(warning.getText());
     warnItem.setAttribute('style', 'color:rgb(250, 50, 50)');
     sublist.appendChild(warnItem);
@@ -520,10 +524,8 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
   }
 
   var isIfNode = rootNode.getLocation().type === 'controls_if';
-  if (rootNode.getLocation().mutator) {
-    if (!isIfNode || !this.selectedNode.branch || !this.selectedNode.branch.key) {
-      sublist.append(...this.makeAllMutatorItems_(rootNode));
-    }
+  if (rootNode.getLocation().mutator && (!isIfNode || showOnBranch)) {
+    sublist.append(...this.makeAllMutatorItems_(rootNode));
   }
 
   var inNode = rootNode.in();
@@ -606,6 +608,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
     list.push(this.makeMutatorListItem_(rootNode, 'Add elseif', block => {
       block.elseifCount_++;
       block.rebuildShape_();
+      this.listItemOnclick(rootNode, null);
     }));
 
     if (block.elseifCount_ > 0) {
@@ -614,6 +617,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
       block => {
         block.elseifCount_--;
         block.rebuildShape_();
+        this.listItemOnclick(rootNode, null);
       }));
     }
   }
@@ -623,12 +627,14 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
     list.push(this.makeMutatorListItem_(rootNode, 'Add else', block => {
       block.elseCount_++;
       block.rebuildShape_();
+      this.listItemOnclick(rootNode, null);
     }));
   } else if (block.elseCount_ === 1) {
     // ***Requires Localization***
     list.push(this.makeMutatorListItem_(rootNode, 'Remove else', block => {
       block.elseCount_--;
       block.rebuildShape_();
+      this.listItemOnclick(rootNode, null);
     }));
   }
 
@@ -891,39 +897,34 @@ Blockly.Linearization.prototype.makeNodeListItems_ = function(node) {
  */
 Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
   var list = [];
-  const inputs = node.getLocation().inputList;
-  const children = node.in().sequence(n => n.next());
   // ***Requires Localization***
-  const branches = Blockly.Linearization.getIfBranches_(node);
+  const branches = Blockly.Linearization.getIfBranches(node);
   for (let branch of branches) {
     if (node.branch && node.branch.key != branch.key) {
       continue;
     }
+
     var text = branch.type;
     if (text !== 'else'){
       text += ' ';
       text += branch.condNode?
           branch.condNode.getLocation().makeAriaLabel():
           this.blankText_;
+      // ***Requires Localization***
       text += ' do';
     }
 
     var bracketItem;
-    if (branch.condNode) {
-      bracketItem = this.makeBasicListItem_(branch.condNode);
+    try {
+      var potential = this.blockJoiner.blockNode.prev();
+      branch.condConnection.checkConnection_(potential.getLocation());
+      // ***Requires Localization***
+      var temp = Blockly.ASTNode.createConnectionNode(branch.condConnection);
+      bracketItem = this.makeBasicConnListItem_(temp,
+          text + ' (click to fill)');
+    } catch(e) {
+      bracketItem = this.makeBasicListItem_(node, branch);
       bracketItem.innerHTML = text;
-    } else {
-      try {
-        var potential = this.blockJoiner.blockNode.prev();
-        branch.condConnection.checkConnection_(potential.getLocation());
-        // ***Requires Localization***
-        bracketItem = this.makeBasicConnListItem_(potential,
-            text + ' (click to fill blank)');
-      } catch(e) {
-        bracketItem = this.makeBasicListItem_(node, branch);
-        bracketItem.innerHTML = text;
-        e instanceof TypeError || console.log(e);
-      }
     }
 
     var bracketItemList = document.createElement('ul');
@@ -934,14 +935,25 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
       branch.bodyNode.sequence(n => n.getFirstSiblingBlock())
         .map(node => this.makeNodeListItems_(node))
         .forEach(items => bracketItemList.append(...items));
-    } else if (this.blockJoiner.blockNode) {
+      continue;
+    }
+
+    if (this.blockJoiner.blockNode) {
       var bodyConnNode = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
       var listItem = this.makeBasicConnListItem_(bodyConnNode, 'Insert within ' + text);
       bracketItemList.appendChild(listItem);
-    } else {
-      bracketItemList.appendChild(
-        Blockly.Linearization.makeListTextItem_(this.blankText_));
+      continue;
     }
+
+    bracketItemList.appendChild(
+      Blockly.Linearization.makeListTextItem_(this.blankText_));
+  }
+
+  if (node.branch) {
+    var viewAllItem = this.makeBasicListItem_(node, null);
+    // ***Requires Localization***
+    viewAllItem.innerHTML = 'View all branches...';
+    list.push(viewAllItem);
   }
 
   return list;
@@ -1261,7 +1273,7 @@ Blockly.Linearization.nextInlineInput = function(node) {
  * from the top of the block to the bottom
  */
 Blockly.Linearization.getIfChildrenNodes_ = function(ifNode) {
-  return Blockly.Linearization.getIfBranches_(ifNode).map(n => n.bodyNode);
+  return Blockly.Linearization.getIfBranches(ifNode).map(n => n.bodyNode);
 }
 
 /**
@@ -1269,13 +1281,12 @@ Blockly.Linearization.getIfChildrenNodes_ = function(ifNode) {
  * @param {!Blockly.ASTNode} ifNode the node containing the if block
  * @return {Array<Object>} the list of branches
  */
-Blockly.Linearization.getIfBranches_ = function(ifNode) {
+Blockly.Linearization.getIfBranches = function(ifNode) {
   const children = ifNode.in().sequence(n => n.next());
-  const inputs = ifNode.getLocation().inputList;
   var branches = [];
-  for (var i = 0; i < inputs.length; i += 2) {
-    var branch = {key: i/2};
-    if (i == inputs.length - 1) {
+  for (var i = 0; i < children.length; i += 2) {
+    var branch = {key: i / 2};
+    if (i === children.length - 1) {
       // ***Requires Localization***
       branch.type = 'else';
       branch.bodyIndex = i;
