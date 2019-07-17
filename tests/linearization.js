@@ -176,8 +176,8 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.generateList_ = function(e) {
-  var workspace = this.workspace;
-  if (!workspace.getAllBlocks().length) {
+  if (!this.workspace.getAllBlocks().length) {
+    this.parentNav.innerHTML = '';
     this.mainNavList.innerHTML = '';
     return;
   }
