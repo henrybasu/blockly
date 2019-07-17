@@ -7,41 +7,68 @@ goog.provide('Blockly.Linearization');
 goog.provide('Blockly.Linearization.BlockJoiner');
 
 /**
- * Class for generating the linearization of a workspace, displayed in
- * parent nav and mainNavList.
+ * Class for generating the linearization of a workspace, displayed in parent
+ * nav and mainNavList.
  *
  * @constructor
  * @param {!Blockly.Workspace} workspace the main workspace to represent
- * @param {HTMLElement} parentNav the p element to display the parent
+ * @param {!HTMLElement} parentNav the p element to display the parent
  * breadcrumbs within
- * @param {HTMLElement} mainNavList the p element to display the main
+ * @param {!HTMLElement} mainNavList the p element to display the main
  * linearization of workspace within
  */
 Blockly.Linearization = function(workspace, parentNav, mainNavList) {
+  /** @const */
   this.workspace = workspace;
-  this.parentNav = parentNav;
-  this.mainNavList = mainNavList;
+
+  /** @const */
   this.blockJoiner = new Blockly.Linearization.BlockJoiner();
+
+  /**
+   * The element to generate parent nav in
+   * @type {HTMLElement}
+   */
+  this.parentNav = parentNav;
+
+  /**
+   * The element to generate the main linearization in
+   * @type {HTMLElement}
+   */
+  this.mainNavList = mainNavList;
+
+
   // ***Requires Localization***
+  /** @const @private */
   this.blankText_ = 'NOTHING';
+
   workspace.addChangeListener(e => this.generateList_(e));
 }
 
 /**
- * Class to manage requests for blocks from connections, and vice-versa.
- * Allows for a single connection request and a single block request at a time.
+ * Class to manage potential connections.
+ * Allows for a single potential connection or block at a time.
  * @constructor
  */
 Blockly.Linearization.BlockJoiner = function() {
+  /**
+   * The block to move
+   * @type {Blockly.ASTNode}
+   */
   this.blockNode = null;
+
+  /**
+   * The connection to attach to
+   * @type {Blockly.ASTNode}
+   */
   this.connectionNode = null;
 }
 
 /**
- * Attempt to fill the request for this item. item must be Blockly.Block or
+ * Attempt to connect this item. item must be Blockly.Block or
  * Blockly.Connection.
  * @param {Block.ASTNode} item
- * @return {boolean} true if successfully pushed, false if push fails
+ * @return {boolean} true if successfully pushed, false if push fails. Note:
+ * a push can be successful without moving the block/connecting the connection
  */
 Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
   if (item.getLocation() instanceof Blockly.Block) {
@@ -63,7 +90,7 @@ Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
 
 /**
  * Attempt to pair blockNode and connectionNode. If successful, join the
- * connections, and then clear them.
+ * connections, and then clear the properties.
  * @private
  */
 Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
@@ -127,7 +154,7 @@ Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
     this.blockNode.prev().getLocation().disconnect();
     this.blockNode.getLocation().bumpNeighbours_();
     this.blockNode = null;
-  } catch (e) { /* unsuccessful disconnect, maybe this.blockNode null */ }
+  } catch (e) { /* unsuccessful disconnect/bump */ }
 }
 
 /**
@@ -142,10 +169,10 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
 };
 
 /**
- * The ChangeListener for workspace events. On fire, fully redraws
- * linearization, including parentNav.
- * @param {?Blockly.Events.Abstract} e undefined by default, the workspace
- * event that triggers this ChangeListener.
+ * The EventListener for workspace events. On fire, fully redraws linearization,
+ * including parentNav.
+ * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
+ * EventListener.
  * @private
  */
 Blockly.Linearization.prototype.generateList_ = function(e) {
@@ -1185,10 +1212,10 @@ Blockly.Linearization.prototype.moveItemOnclick_ = function(node, e) {
  * The standard onclick action for ListElements. Highlights the node's block if
  * node is not null, sets the selectedNode to node, and calls generateList_().
  * @param {?Blockly.ASTNode} node the node to navigate to and highlight
- * @param {Object=} branch null by default, the if-branch to display
+ * @param {?Object} branch the if-branch to display
  * @private
  */
-Blockly.Linearization.prototype.listItemOnclick_ = function(node, branch=null) {
+Blockly.Linearization.prototype.listItemOnclick_ = function(node, branch) {
   this.highlightBlock(node && node.getLocation());
   this.selectedNode = node;
   if (node) {
