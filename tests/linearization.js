@@ -48,47 +48,74 @@ var counter = {
 };
 
 /**
- * Class for generating the linearization of a workspace, displayed in
- * parent nav and mainNavList.
+ * Class for generating the linearization of a workspace, displayed in parent
+ * nav and mainNavList.
  *
  * @constructor
  * @param {!Blockly.Workspace} workspace the main workspace to represent
- * @param {HTMLElement} parentNav the p element to display the parent
+ * @param {!HTMLElement} parentNav the p element to display the parent
  * breadcrumbs within
- * @param {HTMLElement} mainNavList the p element to display the main
+ * @param {!HTMLElement} mainNavList the p element to display the main
  * linearization of workspace within
  */
 Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   if(!counter.Linearization) counter.Linearization = [];
   counter.Linearization.push(new Error(arguments).stack);
 
+  /** @const */
   this.workspace = workspace;
-  this.parentNav = parentNav;
-  this.mainNavList = mainNavList;
+
+  /** @const */
   this.blockJoiner = new Blockly.Linearization.BlockJoiner();
+
+  /**
+   * The element to generate parent nav in
+   * @type {HTMLElement}
+   */
+  this.parentNav = parentNav;
+
+  /**
+   * The element to generate the main linearization in
+   * @type {HTMLElement}
+   */
+  this.mainNavList = mainNavList;
+
+
   // ***Requires Localization***
+  /** @const @private */
   this.blankText_ = 'NOTHING';
+
   workspace.addChangeListener(e => this.generateList_(e));
 }
 
 /**
- * Class to manage requests for blocks from connections, and vice-versa.
- * Allows for a single connection request and a single block request at a time.
+ * Class to manage potential connections.
+ * Allows for a single potential connection or block at a time.
  * @constructor
  */
 Blockly.Linearization.BlockJoiner = function() {
   if(!counter.BlockJoiner) counter.BlockJoiner = [];
   counter.BlockJoiner.push(new Error(arguments).stack);
 
+  /**
+   * The block to move
+   * @type {Blockly.ASTNode}
+   */
   this.blockNode = null;
+
+  /**
+   * The connection to attach to
+   * @type {Blockly.ASTNode}
+   */
   this.connectionNode = null;
 }
 
 /**
- * Attempt to fill the request for this item. item must be Blockly.Block or
+ * Attempt to connect this item. item must be Blockly.Block or
  * Blockly.Connection.
  * @param {Block.ASTNode} item
- * @return {boolean} true if successfully pushed, false if request fails
+ * @return {boolean} true if successfully pushed, false if push fails. Note:
+ * a push can be successful without moving the block/connecting the connection
  */
 Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
   if(!counter.push) counter.push = [];
@@ -103,7 +130,7 @@ Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
     }
     this.connectionNode = item;
   } else {
-    console.warn('failed to push to blockjoiner', item)
+    console.warn('fell through push types', item)
     return false;
   }
 
@@ -113,14 +140,14 @@ Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
 
 /**
  * Attempt to pair blockNode and connectionNode. If successful, join the
- * connections, and then clear them.
+ * connections, and then clear the properties.
  * @private
  */
 Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
   if(!counter.service_) counter.service_ = [];
   counter.service_.push(new Error(arguments).stack);
 
-  if (!(this.blockNode && this.connectionNode)) {
+  if (!this.blockNode || !this.connectionNode) {
     return;
   }
 
@@ -129,11 +156,13 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
   // define advance and back by the direction the connection node requests
   switch (insertPointNode.getType()) {
     case Blockly.ASTNode.types.NEXT:
+    // fall through, same behavior
     case Blockly.ASTNode.types.INPUT:
       advance = n => n.next();
       back = n => n.prev();
       break;
     case Blockly.ASTNode.types.PREVIOUS:
+    // fall through, same behavior
     case Blockly.ASTNode.types.OUTPUT:
       advance = n => n.prev();
       back = n => n.next();
@@ -177,16 +206,12 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
 Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
   if(!counter.disconnectBlock) counter.disconnectBlock = [];
   counter.disconnectBlock.push(new Error(arguments).stack);
-
-  if (!this.blockNode) {
-    return;
-  }
-
+  
   try {
     this.blockNode.prev().getLocation().disconnect();
     this.blockNode.getLocation().bumpNeighbours_();
     this.blockNode = null;
-  } catch (e) { /* unsuccessful disconnect */ }
+  } catch (e) { /* unsuccessful disconnect/bump */ }
 }
 
 /**
@@ -205,10 +230,10 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
 };
 
 /**
- * The ChangeListener for workspace events. On fire, fully redraws
- * linearization, including parentNav.
- * @param {?Blockly.Events.Abstract} e undefined by default, the workspace
- * event that triggers this ChangeListener.
+ * The EventListener for workspace events. On fire, fully redraws linearization,
+ * including parentNav.
+ * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
+ * EventListener.
  * @private
  */
 Blockly.Linearization.prototype.generateList_ = function(e) {
@@ -240,7 +265,7 @@ Blockly.Linearization.prototype.generateList_ = function(e) {
 /**
  * Takes a workspace event and uses the type of event to determine the next
  * selectedNode.
- * @param {Blockly.Events.Abstract} e the workspace event that determines the
+ * @param {!Blockly.Events.Abstract} e the workspace event that determines the
  * next selectedNode.
  * @private
  */
@@ -248,21 +273,18 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
   if(!counter.alterSelectedWithEvent_) counter.alterSelectedWithEvent_ = [];
   counter.alterSelectedWithEvent_.push(new Error(arguments).stack);
 
-  var workspace = this.workspace;
   var node;
+
   switch (e.type) {
     case Blockly.Events.BLOCK_MOVE:
-      var block = workspace.getBlockById(e.blockId);
+      var block = this.workspace.getBlockById(e.blockId);
       node = block && Blockly.ASTNode.createBlockNode(block);
       if (block && this.blockJoiner.connectionNode) {
         this.blockJoiner.push(node);
       }
       break;
-    case Blockly.Events.FINISHED_LOADING:
-      node = null;
-      break;
     case Blockly.Events.BLOCK_CREATE:
-      var block = workspace.getBlockById(e.blockId);
+      var block = this.workspace.getBlockById(e.blockId);
       node = block && Blockly.ASTNode.createBlockNode(block);
       break;
     case Blockly.Events.UI:
@@ -271,7 +293,7 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
       } else if (!e.blockId) {
         node = null;
       } else {
-        var block = workspace.getBlockById(e.blockId);
+        var block = this.workspace.getBlockById(e.blockId);
         node = Blockly.ASTNode.createBlockNode(block);
         if (this.blockJoiner.connectionNode) {
           this.blockJoiner.push(node);
@@ -279,11 +301,13 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
       }
       break;
     case Blockly.Events.BLOCK_DELETE:
+    // fall through, same behavior
+    case Blockly.Events.FINISHED_LOADING:
       node = null;
       break;
   }
 
-  this.listItemOnclick(node);
+  this.listItemOnclick_(node);
 }
 
 /**
@@ -607,8 +631,9 @@ Blockly.Linearization.prototype.makeNodeList_ = function(rootNode) {
   var inline = rootNode.getFirstInlineBlock();
   var isIfNode = rootNode.getLocation().type === 'controls_if';
   if (inline && !isIfNode) {
-    var inlineSeq = inline.sequence(Blockly.Linearization.nextInlineInput);
-    inlineSeq.map(node => this.makeInputListItem_(node)).filter(Boolean)
+    inline.sequence(Blockly.Linearization.nextInlineInput)
+      .map(node => this.makeInputListItem_(node))
+      .filter(Boolean)
       .forEach(elem => sublist.appendChild(elem));
   }
 
@@ -685,72 +710,78 @@ Blockly.Linearization.prototype.makeAllInnerInputItems_ = function(inNode) {
 
 /**
  * Returns all mutator options for the block rootNode wraps in an array.
- * @param {!Blockly.ASTNode} rootNode node containing the block with mutator
+ * @param {!Blockly.ASTNode} node node containing the block with mutator
  * @return {Array<HTMLElement>} an array containing all mutator options encoded
  * as html list items.
  * @private
  */
-Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
+Blockly.Linearization.prototype.makeAllMutatorItems_ = function(node) {
   if(!counter.makeAllMutatorItems_) counter.makeAllMutatorItems_ = [];
   counter.makeAllMutatorItems_.push(new Error(arguments).stack);
 
-  var block = rootNode.getLocation();
+  var block = node.getLocation();
   var list = [];
+
+  const alterAttr = (attrStr, fn) =>
+    function(obj) {
+      // null when no mutations (ie basic if block)
+      var mutXml = obj.mutationToDom() || document.createElement('mutation');
+      var old = parseInt(mutXml.getAttribute(attrStr), 10) || 0;
+      mutXml.setAttribute(attrStr, fn(old));
+      obj.domToMutation(mutXml);
+    };
+
+  const incrAttr = (attrStr) => alterAttr(attrStr, n => n + 1);
+  const decrAttr = (attrStr) => alterAttr(attrStr, n => n - 1);
 
   if (block.elseifCount_ != undefined) {
     // ***Requires Localization***
-    list.push(this.makeMutatorListItem_(rootNode, 'Add elseif', block => {
-      block.elseifCount_++;
-      block.rebuildShape_();
-      this.listItemOnclick(rootNode, null);
+    list.push(this.makeMutatorListItem_(node, 'Add elseif', block => {
+      incrAttr('elseif')(block);
+      this.listItemOnclick_(node, null);
     }));
 
     if (block.elseifCount_ > 0) {
       // ***Requires Localization***
-      list.push(this.makeMutatorListItem_(rootNode, 'Remove elseif',
-      block => {
-        block.elseifCount_--;
-        block.rebuildShape_();
-        this.listItemOnclick(rootNode, null);
+      list.push(this.makeMutatorListItem_(node, 'Remove elseif', block => {
+        decrAttr('elseif')(block);
+        this.listItemOnclick_(node, null);
       }));
     }
   }
 
   if (block.elseCount_ === 0) {
     // ***Requires Localization***
-    list.push(this.makeMutatorListItem_(rootNode, 'Add else', block => {
-      block.elseCount_++;
-      block.rebuildShape_();
-      this.listItemOnclick(rootNode, null);
+    list.push(this.makeMutatorListItem_(node, 'Add else', block => {
+      incrAttr('else')(block);
+      this.listItemOnclick_(node, null);
     }));
   } else if (block.elseCount_ === 1) {
     // ***Requires Localization***
-    list.push(this.makeMutatorListItem_(rootNode, 'Remove else', block => {
-      block.elseCount_--;
-      block.rebuildShape_();
-      this.listItemOnclick(rootNode, null);
+    list.push(this.makeMutatorListItem_(node, 'Remove else', block => {
+      var elseBranch = Blockly.Linearization.getIfBranches(node).pop();
+      if (elseBranch && elseBranch.bodyConnection) {
+        elseBranch.bodyConnection.disconnect();
+      }
+      decrAttr('else')(block);
+      this.listItemOnclick_(node, null);
     }));
   }
 
   if (block.itemCount_ !== undefined) {
     // ***Requires Localization***
-    list.push(this.makeMutatorListItem_(rootNode, 'Add item', block => {
-      block.itemCount_++;
-      block.updateShape_();
-    }));
+    list.push(this.makeMutatorListItem_(node, 'Add item', incrAttr('items')));
 
     if (block.itemCount_ > 0) {
       // ***Requires Localization***
-      list.push(this.makeMutatorListItem_(rootNode, 'Remove item', block => {
-        block.itemCount_--;
-        block.updateShape_();
-      }));
+      list.push(
+        this.makeMutatorListItem_(node, 'Remove item', decrAttr('items')));
     }
   }
 
   if (block.arguments_ != undefined) {
     // ***Requires Localization***
-    list.push(this.makeMutatorListItem_(rootNode, 'Add argument', block => {
+    list.push(this.makeMutatorListItem_(node, 'Add argument', block => {
       var argname;
       if (block.arguments_.length) {
         var lastArg = block.arguments_[block.arguments_.length - 1];
@@ -767,7 +798,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
       block.arguments_.push(argname);
       block.argumentVarModels_.push(newVar);
       block.updateParams_();
-      this.listItemOnclick(rootNode);
+      this.listItemOnclick_(node);
     }));
 
     block.arguments_.forEach(arg => {
@@ -779,7 +810,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
         if (elem.innerText === "") {
           block.arguments_.splice(block.arguments_.indexOf(arg), 1);
           block.updateParams_();
-          this.listItemOnclick(rootNode);
+          this.listItemOnclick_(node);
         } else {
           var argModel = block.getVarModels()[block.arguments_.indexOf(arg)];
           workspace.renameVariableById(argModel.getId(), elem.innerText);
@@ -797,7 +828,7 @@ Blockly.Linearization.prototype.makeAllMutatorItems_ = function(rootNode) {
 /**
  * Returns an html list item that encodes the mutator option defined by text,
  * with source node rootNode, and onclick listener innerFn that accepts
- * rootNode.getLocation(). (listItemOnclick(rootNode) is performed
+ * rootNode.getLocation(). (listItemOnclick_(rootNode) is performed
  * automatically.)
  * @param {!Blockly.ASTNode} rootNode node containing the block with mutator
  * @param {!string} text option text
@@ -815,7 +846,7 @@ Blockly.Linearization.prototype.makeMutatorListItem_ = function(rootNode, text, 
   var elem = Blockly.Linearization.makeListTextItem_(text);
   elem.addEventListener('click', e => {
     innerFn(block);
-    this.listItemOnclick(rootNode);
+    this.listItemOnclick_(rootNode);
   })
   return elem;
 }
@@ -882,7 +913,7 @@ Blockly.Linearization.prototype.makeBasicConnListItem_ = function(node, text) {
   item.id = "li" + connection.id;
   item.blockId = connection.id;
   item.setAttribute('style', 'color:hsl(0, 0%, 0%)');
-  item.addEventListener('click', e => this.moveItemOnclick(node, e));
+  item.addEventListener('click', e => this.moveItemOnclick_(node, e));
   return item;
 }
 
@@ -911,7 +942,7 @@ Blockly.Linearization.prototype.makeParentItem_ = function(node) {
   }
   // ***Requires Localization***
   item.setAttribute('aria-label', 'Jump to ' + labelText);
-  item.addEventListener('click', e => this.listItemOnclick(node));
+  item.addEventListener('click', e => this.listItemOnclick_(node));
   return item;
 }
 
@@ -1014,7 +1045,7 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
       Blockly.Linearization.getIfBranches(node);
   var list = [];
 
-  if (node.branch) {
+  if (node.branch && node.branch.condNode) {
     list.push(this.makeBasicListItem_(node.branch.condNode));
   }
 
@@ -1078,7 +1109,7 @@ Blockly.Linearization.prototype.makeIfListItems_ = function(node) {
  * Creates and returns the standard ListElement for the block in node, labelled
  * with text equivalent to node.getLocation().makeAriaLabel().
  * Attributes include a unique id and blockId for the associated block, as well
- * adding the standard listItemOnclick(node, branch) event listener on click.
+ * adding the standard listItemOnclick_(node, branch) event listener on click.
  * @param {!Blockly.ASTNode} node the block to represent
  * @param {?Object} branch the if branch to navigate to
  * @return {HTMLElement} an linked html list item representation of node
@@ -1098,7 +1129,7 @@ Blockly.Linearization.prototype.makeBasicListItem_ = function(node, branch) {
   listElem.id = "li" + block.id;
   listElem.blockId = block.id;
   listElem.appendChild(document.createTextNode(text));
-  listElem.addEventListener('click', e => this.listItemOnclick(node, branch));
+  listElem.addEventListener('click', e => this.listItemOnclick_(node, branch));
   listElem.setAttribute('style',
           'color:hsl(' + node.getLocation().getHue() + ', 40%, 40%)');
   return listElem;
@@ -1227,7 +1258,7 @@ Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
   // ***Requires Localization***
   var labelText = 'Go back to ' + Blockly.Linearization.getNodeLabel(outNode);
   returnNode.appendChild(document.createTextNode(labelText));
-  returnNode.addEventListener('click', e => this.listItemOnclick(outNode));
+  returnNode.addEventListener('click', e => this.listItemOnclick_(outNode));
   return returnNode;
 }
 
@@ -1276,7 +1307,7 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
  * on click
  * @param {!Blockly.ASTNode} node the node to be moved on click
  * @return {HTMLElement} a labeled html list item that will fire
- * this.moveItemOnclick(node) when clicked.
+ * this.moveItemOnclick_(node) when clicked.
  */
 Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
   if(!counter.makeMoveItem_) counter.makeMoveItem_ = [];
@@ -1285,7 +1316,7 @@ Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
   // ***Requires Localization***
   var text = this.blockJoiner.blockNode? 'Move me instead': 'Move me';
   var element = Blockly.Linearization.makeListTextItem_(text);
-  element.addEventListener('click', e => this.moveItemOnclick(node, e));
+  element.addEventListener('click', e => this.moveItemOnclick_(node, e));
   return element;
 }
 
@@ -1293,13 +1324,15 @@ Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
  * Pushes the node to this.blockJoiner, and navigates to the workspace level
  * linearization
  * @param {!Blockly.ASTNode} node the node to be pushed
+ * @private
  */
-Blockly.Linearization.prototype.moveItemOnclick = function(node, e) {
+Blockly.Linearization.prototype.moveItemOnclick_ = function(node, e) {
   if(!counter.moveItemOnclick) counter.moveItemOnclick = [];
   counter.moveItemOnclick.push(new Error(arguments).stack);
 
   try {
     var successfulConnection = this.blockJoiner.push(node);
+    // can fail and not throw an exception
     if (successfulConnection) {
       this.selectedNode = null;
       this.generateList_();
@@ -1313,9 +1346,10 @@ Blockly.Linearization.prototype.moveItemOnclick = function(node, e) {
  * The standard onclick action for ListElements. Highlights the node's block if
  * node is not null, sets the selectedNode to node, and calls generateList_().
  * @param {?Blockly.ASTNode} node the node to navigate to and highlight
- * @param {Object=} branch null by default, the if-branch to display
+ * @param {?Object} branch the if-branch to display
+ * @private
  */
-Blockly.Linearization.prototype.listItemOnclick = function(node, branch=null) {
+Blockly.Linearization.prototype.listItemOnclick_ = function(node, branch) {
   if(!counter.listItemOnclick) counter.listItemOnclick = [];
   counter.listItemOnclick.push(new Error(arguments).stack);
 
