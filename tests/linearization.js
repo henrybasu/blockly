@@ -951,6 +951,8 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
 
   if (node.branch && node.branch.condNode) {
     list.push(this.makeBlockItem_(node.branch.condNode));
+  } else if (branches.length === 1 && branches[0].condNode) {
+    list.push(this.makeBlockItem_(branches[0].condNode));
   }
 
   for (branch of branches) {
