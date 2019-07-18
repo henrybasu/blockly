@@ -36,6 +36,13 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
    */
   this.mainNavList = mainNavList;
 
+  /**
+   * The font size to generate in
+   * @type {number}
+   * @private
+   */
+  this.fontSize_ = 12;
+
 
   // ***Requires Localization***
   /** @const @private */
@@ -170,14 +177,15 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
 
 /**
  * The EventListener for workspace events. On fire, fully redraws linearization,
- * including parentNav.
+ * generating and replacing the mainNavList and parentNav.
  * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
  * EventListener.
  * @private
  */
 Blockly.Linearization.prototype.generateList_ = function(e) {
   if (!this.workspace.getAllBlocks().length) {
-    this.parentNav.innerHTML = '';
+    // ***Requires Localization***
+    this.parentNav.innerHTML = '(empty workspace)';
     this.mainNavList.innerHTML = '';
     return;
   }
@@ -190,8 +198,8 @@ Blockly.Linearization.prototype.generateList_ = function(e) {
 
   var navListDiv = this.mainNavList;
   var newDiv = this.selected?
-      this.makeFullNodeList_(this.selected):
-      this.makeWorkspaceList_();
+      this.makeBlockFocusView_(this.selected):
+      this.makeWorkspaceView_();
 
   newDiv.setAttribute('id', 'mainNavList');
   navListDiv.parentNode.replaceChild(newDiv, navListDiv);
@@ -244,10 +252,10 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
 }
 
 /**
- * Generates (and replaces) the old parent-nav bar, using color-coded, linked
+ * Generates and replaces the old parent-nav bar, using color-coded, linked
  * breadcrumbs. Always includes workspace.
  * @param {!Blockly.Workspace} Current workspace
- * @param {?Blockly.ASTNode} rooNode Generates breadcrumbs from rootNode's
+ * @param {?Blockly.ASTNode} rootNode Generates breadcrumbs from rootNode's
  * parentStack up to and including rootNode.
  * @private
  */
@@ -268,8 +276,8 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
   // ...cancel move item...
   var blockNode = this.blockJoiner.blockNode;
   if (this.blockJoiner.connectionNode || blockNode) {
-    pNav.appendChild(document.createElement('br'));
-    var cancelItem = document.createElement('b');
+    pNav.appendChild(this.createElement('br'));
+    var cancelItem = this.createElement('b');
     // ***Requires Localization***
     cancelItem.appendChild(document.createTextNode('Cancel Move'));
     cancelItem.addEventListener('click', e => {
@@ -285,8 +293,8 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
 
   // ...delete block item...
   if (blockNode && !this.selected) {
-    pNav.appendChild(document.createElement('br'));
-    var deleteItem = document.createElement('b');
+    pNav.appendChild(this.createElement('br'));
+    var deleteItem = this.createElement('b');
     // ***Requires Localization***
     var text = 'Delete ' + blockNode.getLocation().makeAriaLabel();
     deleteItem.appendChild(document.createTextNode(text));
@@ -299,8 +307,8 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
     if (blockNode.prev()) {
       // if this has the ability to be mid-stack (unlike hat blocks)
       pNav.appendChild(deleteItem);
-      pNav.appendChild(document.createElement('br'));
-      var newStackItem = document.createElement('b');
+      pNav.appendChild(this.createElement('br'));
+      var newStackItem = this.createElement('b');
       // ***Requires Localization***
       newStackItem.appendChild(document.createTextNode('Start new stack'));
       newStackItem.addEventListener('click', e => {
@@ -314,14 +322,14 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
 /**
  * Creates and returns the HTML unordered list of labelled stacks with sublists
  * of every block on the same visual indent, represented with list elements
- * @return {HTMLElement} an html representation of the top level of the current
- * workspace, in the form of an unordered list.
+ * @return {HTMLElement} an html unordered list of the top level of the current
+ * workspace.
  * @private
  */
-Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
+Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
   var workspace = this.workspace;
   var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
-  var wsList = document.createElement('ul');
+  var wsList = this.createElement('ul');
 
   // for each stack
   var firstStack = wsNode.in();
@@ -347,11 +355,10 @@ Blockly.Linearization.prototype.makeWorkspaceList_ = function() {
  * a color-coded, linked sublist
  */
 Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
-  var stackItem = document.createElement('li');
   // ***Requires Localization***
-  stackItem.appendChild(document.createTextNode('Stack ' + this.marker));
+  var stackItem = this.makeTextItem('Stack ' + this.marker);
   this.marker = Blockly.Linearization.nextStackMarker(this.marker);
-  var stackItemList = document.createElement('ul');
+  var stackItemList = this.createElement('ul');
 
   // for each block node in the top of the stack
   var firstNode = stack.in();
@@ -375,11 +382,10 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
  * a color-coded, linked sublist
  */
 Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
-  var stackItem = document.createElement('li');
+  var stackItem = this.createElement('li');
   var oldName = '';
   // ***Requires Localization***
-  var stackElem =
-      Blockly.Linearization.makeTextItem_('Stack ' + this.marker);
+  var stackElem = this.makeTextItem('Stack ' + this.marker);
   stackElem.contentEditable = true;
   stackElem.addEventListener('focus', (e) => {
     oldName = stackElem.innerText.slice(6);
@@ -395,7 +401,7 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
   });
   stackItem.appendChild(stackElem);
   this.marker = Blockly.Linearization.nextStackMarker(this.marker);
-  var stackItemList = document.createElement('ul');
+  var stackItemList = this.createElement('ul');
 
   // first block in stack
   var blockNode = stackNode.in();
@@ -426,7 +432,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(blockNode,
   var nestedName = this.getNestingBlockName_(block);
   // ***Requires Localization***
   var endList = nestedName?
-    [Blockly.Linearization.makeTextItem_('end ' + nestedName)]: [];
+    [this.makeTextItem('end ' + nestedName)]: [];
 
   if (blockNode.getType() !== Blockly.ASTNode.types.BLOCK
     || (block.outputConnection && block.getParent())
@@ -436,7 +442,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(blockNode,
 
   // recursively generates a ul containing all html representations of children
   const generateInnerBody = (node) => {
-    var nestedItemList = document.createElement('ul');
+    var nestedItemList = this.createElement('ul');
     node.sequence(n => n.getFirstSiblingBlock())
         .map(node => this.makeBlockList_(node, rootBlock))
         .forEach(items => nestedItemList.append(...items));
@@ -456,12 +462,11 @@ Blockly.Linearization.prototype.makeBlockList_ = function(blockNode,
       }
       descendantItems.push(headerItem);
 
-      var body = document.createElement('ul');
+      var body = this.createElement('ul');
       if (branch.bodyNode) {
         body = generateInnerBody(branch.bodyNode);
       } else {
-        body.appendChild(
-          Blockly.Linearization.makeTextItem_(this.blankText_));
+        body.appendChild(this.makeTextItem(this.blankText_));
       }
       descendantItems.push(body);
     }
@@ -517,12 +522,11 @@ Blockly.Linearization.prototype.getNestingBlockName_ = function(block) {
  * Creates and returns the HTML unordered list of every block on the same visual
  * indent within the rootNode, represented with list elements
  * @param {!Blockly.ASTNode} rootNode the direct parent of all items in the list
- * @return {HTMLElement} an html representation of the top level of the
- * rootNode, in the form of an unordered list.
+ * @return {HTMLElement} an html unordered list of the top level of the rootNode
  * @private
  */
-Blockly.Linearization.prototype.makeFullNodeList_ = function(rootNode) {
-  var sublist = document.createElement('ul');
+Blockly.Linearization.prototype.makeBlockFocusView_ = function(rootNode) {
+  var sublist = this.createElement('ul');
   sublist.appendChild(this.makeGoBackItem_(rootNode));
 
   var showOnBranch = !this.selected.branch || !this.selected.branch.key;
@@ -532,8 +536,8 @@ Blockly.Linearization.prototype.makeFullNodeList_ = function(rootNode) {
 
   var warning = rootNode.getLocation().warning;
   if (warning && warning.getText && warning.getText().trim().length) {
-    var warnItem = Blockly.Linearization.makeTextItem_(warning.getText());
-    warnItem.setAttribute('style', 'color:rgb(250, 50, 50)');
+    var warnItem = this.makeTextItem(warning.getText());
+    warnItem.style['color'] = 'rgb(250, 50, 50)';
     sublist.appendChild(warnItem);
   }
 
@@ -669,7 +673,7 @@ Blockly.Linearization.prototype.makeMutatorList_ = function(node) {
   const alterAttr = (attrStr, fn) =>
     function(obj) {
       // null when no mutations (ie basic if block)
-      var mutXml = obj.mutationToDom() || document.createElement('mutation');
+      var mutXml = obj.mutationToDom() || this.createElement('mutation');
       var old = parseInt(mutXml.getAttribute(attrStr), 10) || 0;
       mutXml.setAttribute(attrStr, fn(old));
       obj.domToMutation(mutXml);
@@ -746,7 +750,7 @@ Blockly.Linearization.prototype.makeMutatorList_ = function(node) {
     }));
 
     block.arguments_.forEach(arg => {
-      var elem = Blockly.Linearization.makeTextItem_(
+      var elem = this.makeTextItem(
         'Argument \"' + arg + '\"');
       elem.contentEditable = true;
       elem.addEventListener('focus', (e) => elem.innerText = arg);
@@ -785,7 +789,7 @@ Blockly.Linearization.prototype.makeMutatorList_ = function(node) {
 Blockly.Linearization.prototype.makeMutatorItem_ = function(rootNode, text,
     innerFn) {
   var block = rootNode.getLocation();
-  var elem = Blockly.Linearization.makeTextItem_(text);
+  var elem = this.makeTextItem(text);
   elem.addEventListener('click', e => {
     innerFn(block);
     this.listItemOnclick_(rootNode);
@@ -804,11 +808,11 @@ Blockly.Linearization.prototype.makeMutatorItem_ = function(rootNode, text,
  * @private
  */
 Blockly.Linearization.prototype.makeConnectionItem_ = function(node, text) {
-  var item = Blockly.Linearization.makeTextItem_(text);
+  var item = this.makeTextItem(text);
   var connection = node.getLocation();
   item.id = "li" + connection.id;
   item.blockId = connection.id;
-  item.setAttribute('style', 'color:hsl(0, 0%, 0%)');
+  item.style['color'] = 'hsl(0, 0%, 0%)';
   item.addEventListener('click', e => this.moveItemOnclick_(node, e));
   return item;
 }
@@ -822,16 +826,15 @@ Blockly.Linearization.prototype.makeConnectionItem_ = function(node, text) {
  * @private
  */
 Blockly.Linearization.prototype.makeParentItem_ = function(node) {
-  var item = document.createElement('b');
-  var labelText = Blockly.Linearization.getNodeLabel(node);
+  var item = this.createElement('b');
+  var labelText = Blockly.Linearization.makeNodeLabel(node);
   if (!node && !this.selected) {
     // ***Requires Localization***
     labelText += this.blockJoiner.blockNode? ' (move mode)': ' (summary)';
   }
   item.appendChild(document.createTextNode(labelText + ' > '));
   if (node) {
-    item.setAttribute('style',
-          'color:hsl(' + node.getLocation().getHue() + ', 40%, 40%)');
+    item.style['color'] = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
   }
   // ***Requires Localization***
   item.setAttribute('aria-label', 'Jump to ' + labelText);
@@ -857,7 +860,7 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
         return this.makeEditableFieldItem_(location);
       }
       var fallthroughText = 'field but neither dropdown nor number';
-      return Blockly.Linearization.makeTextItem_(fallthroughText);
+      return this.makeTextItem(fallthroughText);
     case Blockly.ASTNode.types.INPUT:
       if (location.targetConnection) {
         var targetInputs = location.targetConnection.getSourceBlock().inputList;
@@ -896,7 +899,7 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
   for (branch of branches) {
     list.push(this.makeIfBracketItem_(node, branch));
 
-    var bracketItemList = document.createElement('ul');
+    var bracketItemList = this.createElement('ul');
     list.push(bracketItemList);
 
     if (branch.bodyNode) {
@@ -913,8 +916,7 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
       continue;
     }
 
-    bracketItemList.appendChild(
-      Blockly.Linearization.makeTextItem_(this.blankText_));
+    bracketItemList.appendChild(this.makeTextItem(this.blankText_));
   }
 
   if (node.branch) {
@@ -972,19 +974,18 @@ Blockly.Linearization.prototype.makeIfBracketItem_ = function(node, branch) {
  * @private
  */
 Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
-  var listElem = document.createElement('li');
   var block = node.getLocation();
   var text = block.makeAriaLabel();
   if (this.blockJoiner.blockIs(node)) {
     // ***Requires Localization***
     text += ' (moving me...)';
   }
+  var listElem = this.makeTextItem(text);
   listElem.id = "li" + block.id;
   listElem.blockId = block.id;
-  listElem.appendChild(document.createTextNode(text));
   listElem.addEventListener('click', e => this.listItemOnclick_(node, branch));
-  listElem.setAttribute('style',
-          'color:hsl(' + node.getLocation().getHue() + ', 40%, 40%)');
+  var colorString = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
+  listElem.style['color'] = colorString;
   return listElem;
 }
 
@@ -1008,9 +1009,9 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
   var fieldName = field.name;
   if (field.getText() === "") {
     // ***Requires Localization***
-    listElem = Blockly.Linearization.makeTextItem_('[Enter some text]');
+    listElem = this.makeTextItem('[Enter some text]');
   } else {
-    listElem = Blockly.Linearization.makeTextItem_(field.getText());
+    listElem = this.makeTextItem(field.getText());
   }
   listElem.id = "li" + field.getSourceBlock().id;
   listElem.contentEditable = true;
@@ -1053,7 +1054,7 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
   }
 
   var labelText = 'Field: ' + entry.option.label;
-  var elem = Blockly.Linearization.makeTextItem_(labelText);
+  var elem = this.makeTextItem(labelText);
   // ***Requires Localization***
   elem.setAttribute('aria-label', labelText + ', click to change');
   elem.setAttribute('index', entry.i);
@@ -1094,16 +1095,15 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
  * visual parent block
  */
 Blockly.Linearization.prototype.makeGoBackItem_ = function(node) {
-  var returnNode = document.createElement('li');
   var outNode = node.out();
   while (outNode && outNode.getType() !== 'block') {
     outNode = outNode.out();
   }
   // ***Requires Localization***
-  var labelText = 'Go back to ' + Blockly.Linearization.getNodeLabel(outNode);
-  returnNode.appendChild(document.createTextNode(labelText));
-  returnNode.addEventListener('click', e => this.listItemOnclick_(outNode));
-  return returnNode;
+  var text = 'Go back to ' + Blockly.Linearization.makeNodeLabel(outNode);
+  var goBackNode = this.makeTextItem(text);
+  goBackNode.addEventListener('click', e => this.listItemOnclick_(outNode));
+  return goBackNode;
 }
 
 /**
@@ -1140,7 +1140,7 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
   }
 
   // ***Requires Localization***
-  return Blockly.Linearization.makeTextItem_('return ' + this.blankText_);
+  return this.makeTextItem('return ' + this.blankText_);
 }
 
 /**
@@ -1153,9 +1153,31 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
 Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
   // ***Requires Localization***
   var text = this.blockJoiner.blockNode? 'Move me instead': 'Move me';
-  var element = Blockly.Linearization.makeTextItem_(text);
+  var element = this.makeTextItem(text);
   element.addEventListener('click', e => this.moveItemOnclick_(node, e));
   return element;
+}
+
+/**
+ * Creates and returns an HTML li element with a text node reading text.
+ * @param {!String} text the text on the list item
+ * @return {HTMLElement} an html list item with text node text
+ */
+Blockly.Linearization.prototype.makeTextItem = function(text) {
+  var listElem = this.createElement('li');
+  listElem.appendChild(document.createTextNode(text));
+  return listElem;
+}
+
+/**
+ * Creates and returns an HTML element with tag type, and inherited font-size
+ * property
+ * @param {!String} type the type of html element
+ */
+Blockly.Linearization.prototype.createElement = function(type) {
+  var elem = document.createElement(type);
+  elem.style['font-size'] = this.fontSize_ + 'pt';
+  return elem;
 }
 
 /**
@@ -1215,60 +1237,13 @@ Blockly.Linearization.prototype.clearHighlighted = function() {
 }
 
 /**
- * Creates and returns an HTML li element with a text node reading text.
- * @param {!String} text the text on the list item
- * @return {HTMLElement} an html list item with text node text
- * @private
+ * Sets the size of the font for the linearization and calls generateList_()
+ * @param {number} size the new font size for the linearization
  */
-Blockly.Linearization.makeTextItem_ = function(text) {
-  var listElem = document.createElement('li');
-  listElem.appendChild(document.createTextNode(text));
-  return listElem;
-}
-
-/**
- * Creates and returns the next label in lexicographic order, adding a letter in
- * the event of overflow.
- * @param {!String} marker the last node created
- * @return {String} the next label after marker in lexicographic order
- */
-Blockly.Linearization.nextStackMarker = function(marker) {
-  var lastIndex = marker.length - 1;
-  var prefix = marker.slice(0, lastIndex);
-  if (marker.charCodeAt(lastIndex) === 'Z'.charCodeAt(0)) {
-    return (prefix? this.nextStackMarker(prefix): 'A') + 'A';
-  }
-  return prefix + String.fromCharCode(marker.charCodeAt(lastIndex) + 1);
-}
-
-/**
- * Creates and returns the aria label for node if
- * node.getLocation().makeAriaLabel is not null, 'workspace' if otherwise.
- * @param {?Blockly.ASTNode} node the node to get aria-label from
- * @return {String} the string generated by node.getLocation().makeAriaLabel()
- */
-Blockly.Linearization.getNodeLabel = function(node) {
-  // ***Requires Localization***
-  return node && node.getLocation().makeAriaLabel?
-      node.getLocation().makeAriaLabel(): 'workspace';
-}
-
-/**
- * Seeks the next inline input on node's AST parent after node itself.
- * @param {!Blockly.ASTNode} node the last sibiling searched
- * @return {Blockly.ASTNode} the first inline sibling after node, null if none.
- */
-Blockly.Linearization.nextInlineInput = function(node) {
-  var next = node.next();
-  if (next && next.getType() === Blockly.ASTNode.types.FIELD) {
-    return next;
-  }
-  if (next && next.in() &&
-     next.in().getType() != Blockly.ASTNode.types.PREVIOUS) {
-    return next;
-  }
-  return null;
-}
+Blockly.Linearization.prototype.setFontSize = function (size) {
+  this.fontSize_ = size;
+  this.generateList_();
+};
 
 /**
  * Returns the list of objects representing each branch of the if in order
@@ -1307,4 +1282,48 @@ Blockly.Linearization.getIfBranches = function(ifNode) {
   }
 
   return branches;
+}
+
+/**
+ * Creates and returns the aria label for node if
+ * node.getLocation().makeAriaLabel is not null, 'workspace' if otherwise.
+ * @param {?Blockly.ASTNode} node the node to get aria-label from
+ * @return {String} the string generated by node.getLocation().makeAriaLabel()
+ */
+Blockly.Linearization.makeNodeLabel = function(node) {
+  // ***Requires Localization***
+  return node && node.getLocation().makeAriaLabel?
+      node.getLocation().makeAriaLabel(): 'workspace';
+}
+
+/**
+ * Seeks the next inline input on node's AST parent after node itself.
+ * @param {!Blockly.ASTNode} node the last sibiling searched
+ * @return {Blockly.ASTNode} the first inline sibling after node, null if none.
+ */
+Blockly.Linearization.nextInlineInput = function(node) {
+  var next = node.next();
+  if (next && next.getType() === Blockly.ASTNode.types.FIELD) {
+    return next;
+  }
+  if (next && next.in() &&
+     next.in().getType() != Blockly.ASTNode.types.PREVIOUS) {
+    return next;
+  }
+  return null;
+}
+
+/**
+ * Creates and returns the next label in lexicographic order, adding a letter in
+ * the event of overflow.
+ * @param {!String} marker the last node created
+ * @return {String} the next label after marker in lexicographic order
+ */
+Blockly.Linearization.nextStackMarker = function(marker) {
+  var lastIndex = marker.length - 1;
+  var prefix = marker.slice(0, lastIndex);
+  if (marker.charCodeAt(lastIndex) === 'Z'.charCodeAt(0)) {
+    return (prefix? this.nextStackMarker(prefix): 'A') + 'A';
+  }
+  return prefix + String.fromCharCode(marker.charCodeAt(lastIndex) + 1);
 }
