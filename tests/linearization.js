@@ -911,7 +911,8 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
 
     if (this.blockJoiner.blockNode) {
       var body = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
-      var listItem = this.makeConnectionItem_(body, 'Insert within ' + text);
+      var listItem = this.makeConnectionItem_(body, 'Insert within '
+          + branch.text);
       bracketItemList.appendChild(listItem);
       continue;
     }
