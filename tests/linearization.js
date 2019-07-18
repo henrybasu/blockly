@@ -383,24 +383,11 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
  */
 Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
   var stackItem = this.createElement('li');
-  var oldName = '';
   // ***Requires Localization***
   var stackElem = this.makeTextItem('Stack ' + this.marker);
-  stackElem.contentEditable = true;
-  stackElem.addEventListener('focus', (e) => {
-    oldName = stackElem.innerText.slice(6);
-    stackElem.innerText = oldName;
-  });
-  stackElem.addEventListener('blur', (e) => {
-    if (stackElem.innerText === "") {
-      stackElem.innerText = 'Stack ' + oldName;
-    } else {
-      var newName = stackElem.innerText;
-      stackElem.innerText = 'Stack ' + newName;
-    }
-  });
-  stackItem.appendChild(stackElem);
   this.marker = Blockly.Linearization.nextStackMarker(this.marker);
+
+  stackItem.appendChild(stackElem);
   var stackItemList = this.createElement('ul');
 
   // first block in stack
@@ -911,8 +898,8 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
 
     if (this.blockJoiner.blockNode) {
       var body = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
-      var listItem = this.makeConnectionItem_(body, 'Insert within '
-          + branch.text);
+      var text = 'Insert within ' + branch.text;
+      var listItem = this.makeConnectionItem_(body, text);
       bracketItemList.appendChild(listItem);
       continue;
     }
