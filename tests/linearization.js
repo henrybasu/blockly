@@ -337,9 +337,10 @@ Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
   this.marker = 'A';
 
   // is in move mode? partial: full;
-  var mappingFn = this.blockJoiner.blockNode?
-      stack => this.makePartialStackItem_(stack):
-      stack => this.makeFullStackItem_(stack);
+  // var mappingFn = this.blockJoiner.blockNode?
+  //     stack => this.makePartialStackItem_(stack):
+  //     stack => this.makeFullStackItem_(stack);
+  var mappingFn = stack => this.makeFullStackItem_(stack);
 
   stacks.map(mappingFn).forEach(item => wsList.append(item));
 
@@ -879,7 +880,7 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
       Blockly.Linearization.getIfBranches(node);
   var list = [];
 
-  if (node.branch && node.branch.condNode) {
+  if ((node.branch || branches.length === 1) && node.branch.condNode) {
     list.push(this.makeBlockItem_(node.branch.condNode));
   }
 
