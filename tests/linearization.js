@@ -624,7 +624,7 @@ Blockly.Linearization.prototype.makeMutatorList_ = function(node) {
   const alterAttr = (attrStr, fn) =>
     function(obj) {
       // null when no mutations (ie basic if block)
-      var mutXml = obj.mutationToDom() || this.createElement('mutation');
+      var mutXml = obj.mutationToDom() || document.createElement('mutation');
       var old = parseInt(mutXml.getAttribute(attrStr), 10) || 0;
       mutXml.setAttribute(attrStr, fn(old));
       obj.domToMutation(mutXml);
@@ -843,8 +843,10 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
       Blockly.Linearization.getIfBranches(node);
   var list = [];
 
-  if ((node.branch || branches.length === 1) && node.branch.condNode) {
+  if (node.branch && node.branch.condNode) {
     list.push(this.makeBlockItem_(node.branch.condNode));
+  } else if (branches.length === 1 && branches[0].condNode) {
+    list.push(this.makeBlockItem_(branches[0].condNode));
   }
 
   for (branch of branches) {
