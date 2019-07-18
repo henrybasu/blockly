@@ -331,49 +331,14 @@ Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
   var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
   var wsList = this.createElement('ul');
 
-  // for each stack
   var firstStack = wsNode.in();
   var stacks = firstStack.sequence(n => n.next());
+
   this.marker = 'A';
-
-  // is in move mode? partial: full;
-  // var mappingFn = this.blockJoiner.blockNode?
-  //     stack => this.makePartialStackItem_(stack):
-  //     stack => this.makeFullStackItem_(stack);
-  var mappingFn = stack => this.makeFullStackItem_(stack);
-
-  stacks.map(mappingFn).forEach(item => wsList.append(item));
+  stacks.map(stack => this.makeStackItem_(stack))
+        .forEach(item => wsList.append(item));
 
   return wsList;
-}
-
-/**
- * Generates the stack item that contains all the top-level information
- * as well as movement options for the provided stack. Designed for use during
- * move operations
- * @param {!Blockly.ASTNode} stack the stack to represent
- * @return {HTMLElement} a list element describing the top-level of the stack as
- * a color-coded, linked sublist
- */
-Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
-  // ***Requires Localization***
-  var stackItem = this.makeTextItem('Stack ' + this.marker);
-  this.marker = Blockly.Linearization.nextStackMarker(this.marker);
-  var stackItemList = this.createElement('ul');
-
-  // for each block node in the top of the stack
-  var firstNode = stack.in();
-  if (firstNode.getType() !== Blockly.ASTNode.types.BLOCK) {
-    firstNode = firstNode.getFirstSiblingBlock();
-  }
-
-  // add a new list element representing the block to the list
-  firstNode.sequence(n => n.getFirstSiblingBlock())
-    .map(node => this.makeNodeItems_(node))
-    .forEach(items => stackItemList.append(...items));
-
-  stackItem.appendChild(stackItemList);
-  return stackItem;
 }
 
 /**
@@ -382,7 +347,7 @@ Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
  * @return {HTMLElement} a list element describing the complete stack as
  * a color-coded, linked sublist
  */
-Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
+Blockly.Linearization.prototype.makeStackItem_ = function(stackNode) {
   var stackItem = this.createElement('li');
   // ***Requires Localization***
   var stackElem = this.makeTextItem('Stack ' + this.marker);
@@ -409,20 +374,18 @@ Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
  * Takes in a block node and recursively makes the list of elements for all
  * descendant blocks.
  * Excludes inline blocks, such as those found in the repeat x times block.
- * @param {Blockly.ASTNode} blockNode the block AST node to start from
- * @param {Blockly.Block} rootBlock the block at which blockNode points to
+ * @param {Blockly.ASTNode} node the block AST node to start from
+ * @param {Blockly.Block} rootBlock the block at which node points to
  * @return {Array<HTMLElement>} an array containing all elements for descendants
  * @private
  */
-Blockly.Linearization.prototype.makeBlockList_ = function(blockNode,
-    rootBlock) {
-  var block = blockNode.getLocation();
+Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
+  var block = node.getLocation();
   var nestedName = this.getNestingBlockName_(block);
   // ***Requires Localization***
-  var endList = nestedName?
-    [this.makeTextItem('end ' + nestedName)]: [];
+  var endList = nestedName? [this.makeTextItem('end ' + nestedName)]: [];
 
-  if (blockNode.getType() !== Blockly.ASTNode.types.BLOCK
+  if (node.getType() !== Blockly.ASTNode.types.BLOCK
     || (block.outputConnection && block.getParent())
     || block.getRootBlock() !== rootBlock) {
     return endList;
@@ -440,9 +403,9 @@ Blockly.Linearization.prototype.makeBlockList_ = function(blockNode,
   var descendantItems = [];
 
   if (block.type === 'controls_if') {
-    var branches = Blockly.Linearization.getIfBranches(blockNode);
+    var branches = Blockly.Linearization.getIfBranches(node);
     for (branch of branches) {
-      var headerItem = this.makeIfBracketItem_(blockNode, branch);
+      var headerItem = this.makeIfBracketItem_(node, branch);
       if (block.getSurroundParent()) {
         // ***Requires Localization***
         headerItem.setAttribute('aria-label', headerItem.innerHTML
@@ -459,7 +422,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(blockNode,
       descendantItems.push(body);
     }
   } else {
-    var listElem = this.makeBlockItem_(blockNode);
+    var listElem = this.makeBlockItem_(node);
     if (block.getSurroundParent()) {
       // ***Requires Localization***
       listElem.setAttribute('aria-label', listElem.innerHTML
@@ -467,11 +430,11 @@ Blockly.Linearization.prototype.makeBlockList_ = function(blockNode,
     }
 
     descendantItems.push(listElem);
-    if (blockNode.getFirstNestedBlock()) {
-      var body = generateInnerBody(blockNode.getFirstNestedBlock());
+    if (node.getFirstNestedBlock()) {
+      var body = generateInnerBody(node.getFirstNestedBlock());
 
       if (block.type === 'procedures_defreturn') {
-        body.append(this.makeReturnItem_(blockNode));
+        body.append(this.makeReturnItem_(node));
       }
 
       descendantItems.push(body);
