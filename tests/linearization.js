@@ -404,7 +404,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
 
   if (block.type === 'controls_if') {
     var branches = Blockly.Linearization.getIfBranches(node);
-    for (branch of branches) {
+    for (var branch of branches) {
       var headerItem = this.makeIfBracketItem_(node, branch);
       if (block.getSurroundParent()) {
         // ***Requires Localization***
@@ -712,7 +712,7 @@ Blockly.Linearization.prototype.makeMutatorList_ = function(node) {
           this.listItemOnclick_(node);
         } else {
           var argModel = block.getVarModels()[block.arguments_.indexOf(arg)];
-          workspace.renameVariableById(argModel.getId(), elem.innerText);
+          this.workspace.renameVariableById(argModel.getId(), elem.innerText);
           block.updateParams_();
         }
       });
@@ -806,6 +806,10 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
       if (location instanceof Blockly.FieldDropdown) {
         return this.makeDropdownItem_(location);
       }
+      if (Blockly.FieldPitch && (location instanceof Blockly.FieldPitch)) {
+        console.log('asdfsdf');
+        return this.makePitchItem_(location);
+      }
       if (location instanceof Blockly.FieldNumber
           || location instanceof Blockly.FieldTextInput) {
         return this.makeEditableFieldItem_(location);
@@ -849,7 +853,7 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
     list.push(this.makeBlockItem_(branches[0].condNode));
   }
 
-  for (branch of branches) {
+  for (var branch of branches) {
     list.push(this.makeIfBracketItem_(node, branch));
 
     var bracketItemList = this.createElement('ul');
@@ -969,8 +973,8 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
   }
   listElem.id = "li" + field.getSourceBlock().id;
   listElem.contentEditable = true;
-  listElem.addEventListener('blur', function(event) {
-    var block = workspace.getBlockById(listElem.id.slice(2));
+  listElem.addEventListener('blur', (event) => {
+    var block = this.workspace.getBlockById(listElem.id.slice(2));
     block.setFieldValue(listElem.innerText, fieldName);
   });
   listElem.addEventListener('keyup', (event) => {
@@ -1007,7 +1011,11 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
     }
   }
 
-  var labelText = 'Field: ' + entry.option.label;
+  if (entry.option.label.alt) {
+    var labelText = 'Field: ' + entry.option.label.alt
+  } else {
+    var labelText = 'Field: ' + entry.option.label;
+  }
   var elem = this.makeTextItem(labelText);
   // ***Requires Localization***
   elem.setAttribute('aria-label', labelText + ', click to change');
@@ -1019,7 +1027,11 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
     while (offset < field.getOptions().length) {
       var newIndex = (oldIndex + offset) % field.getOptions().length;
       var option = makeOptObj(field.getOptions()[newIndex]);
-      var newLabelText = 'Field: ' + option.label;
+      if (option.label.alt) {
+        var newLabelText = 'Field: ' + option.label.alt;
+      } else {
+        var newLabelText = 'Field: ' + option.label;
+      }
       var textNode = document.createTextNode(newLabelText);
       // ***Requires Localization***
       elem.setAttribute('aria-label', newLabelText + ', click to change');
@@ -1036,6 +1048,59 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
       }
     }
     this.generateParentNav_(this.selected);
+    Blockly.Events.enable();
+  });
+  return elem;
+}
+
+/**
+ * Returns the html list element representing the pitch field, null if an invalid field
+ * @param {!Blockly.FieldPitch} field the field to represent
+ * @return {?HTMLElement} a clickable representation of the field that toggles
+ * options through the dropdown option list. If there are no options, null.
+ */
+Blockly.Linearization.prototype.makePitchItem_ = function(field) {
+  var options = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
+
+  var text = '';
+  var value = 0;
+  for (var i = 0, option; option = options[i]; i++) {
+    if (option === field.getText()) {
+      text = option;
+      value = i;
+      break;
+    }
+  }
+
+  var labelText = 'Field: ' + text;
+  var elem = this.makeTextItem(labelText);
+  // ***Requires Localization***
+  elem.setAttribute('aria-label', labelText + ', click to change');
+  elem.setAttribute('index', value);
+  elem.addEventListener('click', e => {
+    Blockly.Events.disable();
+    const oldIndex = parseInt(elem.getAttribute('index'));
+    var offset = 1;
+    while (offset < options.length) {
+      var newIndex = (oldIndex + offset) % options.length;
+      var text = options[newIndex];
+      var newLabelText = 'Field: ' + text;
+      var textNode = document.createTextNode(newLabelText);
+      // ***Requires Localization***
+      elem.setAttribute('aria-label', newLabelText + ', click to change');
+      elem.setAttribute('index', newIndex);
+
+      try {
+        field.setValue(value);
+        elem.replaceChild(textNode, elem.firstChild);
+        break;
+      } catch (e) { // not a variable, so value can't be set
+        console.warn('not a valid variable', option);
+      } finally {
+        offset++;
+      }
+    }
+    this.generateParentNav_(this.selectedNode);
     Blockly.Events.enable();
   });
   return elem;
