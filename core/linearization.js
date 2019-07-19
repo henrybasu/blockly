@@ -3,8 +3,16 @@
  * of a workspace, and a helper classes
  */
 
-goog.provide('Blockly.Linearization');
-goog.provide('Blockly.Linearization.BlockJoiner');
+ goog.provide('Blockly.Linearization');
+ goog.provide('Blockly.Linearization.BlockJoiner');
+
+ goog.require('Blockly.ASTNode');
+ goog.require('Blockly.Block');
+ goog.require('Blockly.Connection');
+ goog.require('Blockly.Events');
+ goog.require('Blockly.FieldDropdown');
+ goog.require('Blockly.FieldNumber');
+ goog.require('Blockly.FieldTextInput');
 
 /**
  * Class for generating the linearization of a workspace, displayed in parent

@@ -109,6 +109,7 @@ goog.addDependency("../../../" + dir + "/core/icon.js", ['Blockly.Icon'], ['Bloc
 goog.addDependency("../../../" + dir + "/core/inject.js", ['Blockly.inject'], ['Blockly.BlockDragSurfaceSvg', 'Blockly.Css', 'Blockly.DropDownDiv', 'Blockly.Grid', 'Blockly.Options', 'Blockly.utils', 'Blockly.WorkspaceSvg', 'Blockly.WorkspaceDragSurfaceSvg', 'goog.ui.Component', 'goog.userAgent']);
 goog.addDependency("../../../" + dir + "/core/input.js", ['Blockly.Input'], ['Blockly.Connection', 'Blockly.FieldLabel']);
 goog.addDependency("../../../" + dir + "/core/insertion_marker_manager.js", ['Blockly.InsertionMarkerManager'], ['Blockly.BlockAnimations', 'Blockly.Events.BlockMove', 'Blockly.RenderedConnection', 'goog.math.Coordinate']);
+goog.addDependency("../../../" + dir + "/core/linearization.js", ['Blockly.Linearization', 'Blockly.Linearization.BlockJoiner'], ['Blockly.ASTNode', 'Blockly.Block', 'Blockly.Connection', 'Blockly.Events', 'Blockly.FieldDropdown', 'Blockly.FieldNumber', 'Blockly.FieldTextInput']);
 goog.addDependency("../../../" + dir + "/core/msg.js", ['Blockly.Msg'], []);
 goog.addDependency("../../../" + dir + "/core/mutator.js", ['Blockly.Mutator'], ['Blockly.Bubble', 'Blockly.Events.BlockChange', 'Blockly.Events.Ui', 'Blockly.Icon', 'Blockly.utils', 'Blockly.WorkspaceSvg', 'Blockly.Xml', 'Blockly.Xml.utils']);
 goog.addDependency("../../../" + dir + "/core/names.js", ['Blockly.Names'], []);
@@ -1839,6 +1840,8 @@ goog.require('Blockly.HorizontalFlyout');
 goog.require('Blockly.Icon');
 goog.require('Blockly.Input');
 goog.require('Blockly.InsertionMarkerManager');
+goog.require('Blockly.Linearization');
+goog.require('Blockly.Linearization.BlockJoiner');
 goog.require('Blockly.Msg');
 goog.require('Blockly.Mutator');
 goog.require('Blockly.Names');
