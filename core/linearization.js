@@ -324,6 +324,14 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
       });
       pNav.appendChild(newStackItem);
     }
+
+    if (this.blockJoiner.blockNode) {
+      var duplicateItem = this.makeDuplicateItem_();
+      if (duplicateItem) {
+        pNav.appendChild(this.createElement('br'));
+        pNav.appendChild(duplicateItem);
+      }
+    }
   }
 }
 
@@ -786,6 +794,23 @@ Blockly.Linearization.prototype.makeMutatorItem_ = function(rootNode, text,
     this.listItemOnclick_(rootNode);
   })
   return elem;
+}
+
+Blockly.Linearization.prototype.makeDuplicateItem_ = function() {
+  var block = this.blockJoiner.blockNode.getLocation();
+  if (!block || !block.isDuplicatable || !block.isDuplicatable()) {
+    return null;
+  }
+  var duplicateItem = this.createElement('b');
+  // ***Requires Localization***
+  duplicateItem.appendChild(document.createTextNode('Duplicate me'));
+  duplicateItem.addEventListener('click', (e) => {
+    var blockDom = Blockly.Xml.blockToDom(block);
+    var newBlock = Blockly.Xml.domToBlock(blockDom, this.workspace);
+    var xy = block.getRootBlock().getRelativeToSurfaceXY();
+    newBlock.moveBy(xy.x + 50, xy.y + 50);
+  });
+  return duplicateItem;
 }
 
 /**
