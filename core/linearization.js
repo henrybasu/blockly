@@ -343,10 +343,42 @@ Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
   var stacks = firstStack.sequence(n => n.next());
 
   this.marker = 'A';
-  stacks.map(stack => this.makeStackItem_(stack))
-        .forEach(item => wsList.append(item));
+  var mappingFn = this.blockJoiner.blockNode?
+    stack => this.makePartialStackItem_(stack):
+    stack => this.makeFullStackItem_(stack);
+
+  stacks.map(mappingFn).forEach(item => wsList.append(item));
 
   return wsList;
+}
+
+/**
+ * Generates the stack item that contains all the top-level information
+ * as well as movement options for the provided stack. Designed for use during
+ * move operations
+ * @param {!Blockly.ASTNode} stack the stack to represent
+ * @return {HTMLElement} a list element describing the top-level of the stack as
+ * a color-coded, linked sublist
+ */
+Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
+  // ***Requires Localization***
+  var stackItem = this.makeTextItem('Stack ' + this.marker);
+  this.marker = Blockly.Linearization.nextStackMarker(this.marker);
+  var stackItemList = this.createElement('ul');
+
+  // for each block node in the top of the stack
+  var firstNode = stack.in();
+  if (firstNode.getType() !== Blockly.ASTNode.types.BLOCK) {
+    firstNode = firstNode.getFirstSiblingBlock();
+  }
+
+  // add a new list element representing the block to the list
+  firstNode.sequence(n => n.getFirstSiblingBlock())
+    .map(node => this.makeNodeItems_(node))
+    .forEach(items => stackItemList.append(...items));
+
+  stackItem.appendChild(stackItemList);
+  return stackItem;
 }
 
 /**
@@ -355,7 +387,7 @@ Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
  * @return {HTMLElement} a list element describing the complete stack as
  * a color-coded, linked sublist
  */
-Blockly.Linearization.prototype.makeStackItem_ = function(stackNode) {
+Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
   var stackItem = this.createElement('li');
   // ***Requires Localization***
   var stackElem = this.makeTextItem('Stack ' + this.marker);
@@ -815,7 +847,6 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
         return this.makeDropdownItem_(location);
       }
       if (Blockly.FieldPitch && (location instanceof Blockly.FieldPitch)) {
-        console.log('asdfsdf');
         return this.makePitchItem_(location);
       }
       if (location instanceof Blockly.FieldNumber
@@ -1006,7 +1037,6 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
   if (!options.length) {
     return null;
   }
-
 
   const makeOptObj = (option) => ({label: option[0], value: option[1]});
   const makeEntryObj = (i) => ({i: i, option: makeOptObj(options[i])});
