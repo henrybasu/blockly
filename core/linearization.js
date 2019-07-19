@@ -1138,7 +1138,7 @@ Blockly.Linearization.prototype.makePitchItem_ = function(field) {
         offset++;
       }
     }
-    this.generateParentNav_(this.selectedNode);
+    this.generateParentNav_(this.selected);
     Blockly.Events.enable();
   });
   return elem;
