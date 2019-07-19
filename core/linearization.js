@@ -325,12 +325,10 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
       pNav.appendChild(newStackItem);
     }
 
-    if (this.blockJoiner.blockNode) {
-      var duplicateItem = this.makeDuplicateItem_();
-      if (duplicateItem) {
-        pNav.appendChild(this.createElement('br'));
-        pNav.appendChild(duplicateItem);
-      }
+    var duplicateItem = this.makeDuplicateItem_(this.blockJoiner.blockNode);
+    if (duplicateItem) {
+      pNav.appendChild(this.createElement('br'));
+      pNav.appendChild(duplicateItem);
     }
   }
 }
@@ -796,8 +794,16 @@ Blockly.Linearization.prototype.makeMutatorItem_ = function(rootNode, text,
   return elem;
 }
 
-Blockly.Linearization.prototype.makeDuplicateItem_ = function() {
-  var block = this.blockJoiner.blockNode.getLocation();
+/**
+ * Creates and returns the HTML bold text option to duplicate the block being
+ * moved to be used in parent-nav.
+ * @param {?Blockly.ASTNode} node the node for the block being moved
+ * @return {?HTMLElement} an html representation of the option to duplicate,
+ * null if not duplicatable, blockNode is null, or duplication is not checkable.
+ * @private
+ */
+Blockly.Linearization.prototype.makeDuplicateItem_ = function(blockNode) {
+  var block = blockNode && blockNode.getLocation();
   if (!block || !block.isDuplicatable || !block.isDuplicatable()) {
     return null;
   }
@@ -809,6 +815,7 @@ Blockly.Linearization.prototype.makeDuplicateItem_ = function() {
     var newBlock = Blockly.Xml.domToBlock(blockDom, this.workspace);
     var xy = block.getRootBlock().getRelativeToSurfaceXY();
     newBlock.moveBy(xy.x + 50, xy.y + 50);
+    this.blockJoiner.blockNode = null;
   });
   return duplicateItem;
 }
@@ -888,7 +895,9 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
           return this.makeEditableFieldItem_(targetInputs[0]);
         }
         var targetBlockNode = node.in().next();
-        return this.makeBlockItem_(targetBlockNode);
+        if (targetBlockNode.getLocation().outputConnection) {
+          return this.makeBlockItem_(targetBlockNode);
+        }
       }
       break;
     case Blockly.ASTNode.types.OUTPUT:
