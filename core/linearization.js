@@ -236,7 +236,9 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
     case Blockly.Events.BLOCK_CREATE:
       var block = this.workspace.getBlockById(e.blockId);
       node = block && Blockly.ASTNode.createBlockNode(block);
-      this.cooldown = node && new Date().getTime() + 100;
+      if (node) {
+        this.startEventCooldown_();
+      }
       break;
     case Blockly.Events.UI:
       if (e.element !== 'selected' && e.element !== 'click') {
@@ -256,6 +258,14 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
   }
 
   this.listItemOnclick_(node);
+}
+
+/**
+ * Sets this.cooldown to 100 millis
+ * @private
+ */
+Blockly.Linearization.prototype.startEventCooldown_ = function() {
+  this.cooldown = new Date().getTime() + 100;
 }
 
 /**
@@ -444,8 +454,10 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
       var body = this.createElement('ul');
       if (branch.bodyNode) {
         body = generateInnerBody(branch.bodyNode);
-      } else {
-        body.appendChild(this.makeTextItem(this.blankText_));
+      } else if (this.blockJoiner.blockNode) {
+        var bodyNode = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
+        var text = 'Insert within ' + branch.text;
+        body.appendChild(this.makeConnectionItem_(bodyNode, text));
       }
       descendantItems.push(body);
     }
