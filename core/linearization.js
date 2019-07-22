@@ -454,7 +454,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
       var headerItem = this.makeIfBracketItem_(node, branch);
       if (block.getSurroundParent()) {
         // ***Requires Localization***
-        headerItem.setAttribute('aria-label', headerItem.innerHTML
+        headerItem.setAttribute('aria-label', headerItem.firstChild.textContent
         + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
       }
       descendantItems.push(headerItem);
@@ -471,7 +471,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     var listElem = this.makeBlockItem_(node);
     if (block.getSurroundParent()) {
       // ***Requires Localization***
-      listElem.setAttribute('aria-label', listElem.innerHTML
+      listElem.setAttribute('aria-label', listElem.firstChild.textContent
         + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
     }
 
@@ -547,6 +547,7 @@ Blockly.Linearization.prototype.makeBlockFocusView_ = function(rootNode) {
       .filter(Boolean)
       .forEach(elem => sublist.appendChild(elem));
   }
+  // this.makeShadowBlockItems_(rootNode, sublist)
 
   if (rootNode.getLocation().mutator && (!isIfNode || showOnBranch)) {
     sublist.append(...this.makeMutatorList_(rootNode));
@@ -989,7 +990,8 @@ Blockly.Linearization.prototype.makeIfBracketItem_ = function(node, branch) {
         text + ' (click to fill)');
   } catch(e) {
     bracketItem = this.makeBlockItem_(node, branch);
-    bracketItem.innerHTML = text;
+    bracketItem.firstChild.textContent = text;
+    // bracketItem.innerHTML = text;
   }
   return bracketItem;
 };
@@ -1018,6 +1020,24 @@ Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
   var colorString = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
   listElem.style['color'] = colorString;
   return listElem;
+}
+
+/**
+* Creates immediately clickable/interactable field items for shadow blocks
+* for some block node.
+* @param {Blockly.ASTNode} node the block to add items for
+* @param {HTMLElement} list the list to which to add items to
+* @private
+*/
+Blockly.Linearization.prototype.makeShadowBlockItems_ = function(node, list) {
+  console.log('hi');
+  var inline = node.getFirstInlineBlock();
+  if (inline) {
+    inline.sequence(Blockly.Linearization.nextInlineInput)
+      // .map(node => this.makeInputItem_(node))
+      // .filter(Boolean)
+      // .forEach(elem => sublist.appendChild(elem));
+  }
 }
 
 /**
@@ -1163,7 +1183,7 @@ Blockly.Linearization.prototype.makePitchItem_ = function(field) {
       elem.setAttribute('index', newIndex);
 
       try {
-        field.setValue(value);
+        field.setValue(newIndex);
         elem.replaceChild(textNode, elem.firstChild);
         break;
       } catch (e) { // not a variable, so value can't be set
@@ -1256,7 +1276,10 @@ Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
  */
 Blockly.Linearization.prototype.makeTextItem = function(text) {
   var listElem = this.createElement('li');
-  listElem.appendChild(document.createTextNode(text));
+  var spanElem = this.createElement('span');
+  spanElem.appendChild(document.createTextNode(text));
+  // listElem.appendChild(document.createTextNode(text));
+  listElem.appendChild(spanElem);
   return listElem;
 }
 
