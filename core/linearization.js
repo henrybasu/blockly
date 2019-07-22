@@ -416,7 +416,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
 
   const alterAriaLabel = (item) => {
       // ***Requires Localization***
-      item.firstChild.setAttribute('aria-label', item.innerHTML
+      item.firstChild.setAttribute('aria-label', item.firstChild.textContent
       + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
       item.firstChild.setAttribute('role', 'button');
   }
@@ -990,12 +990,11 @@ Blockly.Linearization.prototype.makeIfBracketItem_ = function(node, branch) {
           text + ' (click to fill)');
     } else {
       bracketItem = this.makeBlockItem_(node, branch);
-      bracketItem.innerHTML = text;
+      bracketItem.firstChild.textContent = text;
     }
   } catch(e) {
     bracketItem = this.makeBlockItem_(node, branch);
     bracketItem.firstChild.textContent = text;
-    // bracketItem.innerHTML = text;
   }
   return bracketItem;
 };
