@@ -162,7 +162,8 @@ function start() {
     workspace,
     document.getElementById('parentNav'),
     document.getElementById('mainNavList')
-  );
+  )
+    workspace.linearization.setFontSize(14)
   // Mac students added this code
 }
 
@@ -366,6 +367,7 @@ h1 {
 #mainNavList * {
     list-style-type: none;
     padding-inline-start: 8px;
+      margin-bottom: 5px;
 }
 .ioLabel>.blocklyFlyoutLabelText {
   font-style: italic;
