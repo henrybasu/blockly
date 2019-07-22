@@ -353,6 +353,7 @@ Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
 
   return wsList;
 }
+
 /**
  * Generates the html li that contains listings for all items in the stack
  * @param {!Blockly.ASTNode} stackNode the stack to represent
@@ -397,8 +398,10 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
   // ***Requires Localization***
   var endLabel = nestedName && this.makeTextItem('end ' + nestedName);
   if (endLabel) {
-    	endLabel.firstChild.setAttribute('role', 'text');
+    // ***Requires Localization***
+  	endLabel.firstChild.setAttribute('role', 'text');
   }
+
   if (node.getType() !== Blockly.ASTNode.types.BLOCK
     || (block.outputConnection && block.getParent())
     || block.getRootBlock() !== rootBlock) {
@@ -415,10 +418,11 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
   }
 
   const alterAriaLabel = (item) => {
-      // ***Requires Localization***
-      item.firstChild.setAttribute('aria-label', item.firstChild.textContent
-      + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
-      item.firstChild.setAttribute('role', 'button');
+    // ***Requires Localization***
+    item.firstChild.setAttribute('aria-label', item.firstChild.textContent
+        + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+    // ***Requires Localization***
+    item.firstChild.setAttribute('role', 'button');
   }
 
   var basicNodeItems = this.makeNodeItems_(node);
@@ -463,7 +467,9 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     }
   }
 
-  descendantItems.push(endLabel);
+  if (endLabel) {
+    descendantItems.push(endLabel);
+  }
 
   if (basicNodeItems.final) {
     descendantItems.push(basicNodeItems.final);
@@ -589,6 +595,13 @@ Blockly.Linearization.prototype.makeNodeItems_ = function(node) {
   return list;
 }
 
+/**
+ * Generates the html item that pushes the previous connection when
+ * this.blockJoiner.blockNode is not null and the node is the first child
+ * @param {!Blockly.ASTNode} node the node where node.prev() is called
+ * @return {HTMLElement} a list element describing that pushes node.prev() to
+ * this.blockJoiner when possible, null otherwise
+ */
 Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
   var blockNode = this.blockJoiner.blockNode;
   var display = blockNode !== node && blockNode;
@@ -602,6 +615,13 @@ Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
   return null;
 }
 
+/**
+ * Generates the html item that pushes the next connection to this.blockJoiner
+ * when this.blockJoiner.blockNode is not null
+ * @param {!Blockly.ASTNode} node the node where node.next() is called
+ * @return {HTMLElement} a list element describing that pushes node.next() to
+ * this.blockJoiner when possible, null otherwise
+ */
 Blockly.Linearization.prototype.makeNextConnectionItem_ = function(node) {
   var blockNode = this.blockJoiner.blockNode;
   var display = blockNode !== node && blockNode;
