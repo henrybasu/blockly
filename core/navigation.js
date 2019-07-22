@@ -771,6 +771,9 @@ Blockly.Navigation.workspaceKeyHandler = function(e) {
     Blockly.Navigation.log('X: Workspace: Disconnect Blocks');
     Blockly.Navigation.disconnectBlocks();
     return true;
+  } else if (e.keyCode === goog.events.KeyCodes.R) {
+    Blockly.Navigation.log('R: Workspace: Read Node');
+    Blockly.Navigation.log(Blockly.Navigation.cursor_.getCurNode());
   }
   return false;
 };

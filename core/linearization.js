@@ -236,7 +236,9 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
     case Blockly.Events.BLOCK_CREATE:
       var block = this.workspace.getBlockById(e.blockId);
       node = block && Blockly.ASTNode.createBlockNode(block);
-      this.cooldown = node && new Date().getTime() + 100;
+      if (node) {
+        this.startEventCooldown_();
+      }
       break;
     case Blockly.Events.UI:
       if (e.element !== 'selected' && e.element !== 'click') {
@@ -256,6 +258,14 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
   }
 
   this.listItemOnclick_(node);
+}
+
+/**
+ * Sets this.cooldown to 100 millis
+ * @private
+ */
+Blockly.Linearization.prototype.startEventCooldown_ = function() {
+  this.cooldown = new Date().getTime() + 100;
 }
 
 /**
@@ -353,6 +363,7 @@ Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
 
   return wsList;
 }
+
 /**
  * Generates the html li that contains listings for all items in the stack
  * @param {!Blockly.ASTNode} stackNode the stack to represent
@@ -396,6 +407,10 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
   var nestedName = this.getNestingBlockName_(block);
   // ***Requires Localization***
   var endLabel = nestedName && this.makeTextItem('end ' + nestedName);
+  if (endLabel) {
+    // ***Requires Localization***
+  	endLabel.firstChild.setAttribute('role', 'text');
+  }
 
   if (node.getType() !== Blockly.ASTNode.types.BLOCK
     || (block.outputConnection && block.getParent())
@@ -413,9 +428,11 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
   }
 
   const alterAriaLabel = (item) => {
-      // ***Requires Localization***
-      item.setAttribute('aria-label', item.innerHTML
-      + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+    // ***Requires Localization***
+    item.firstChild.setAttribute('aria-label', item.firstChild.textContent
+        + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+    // ***Requires Localization***
+    item.firstChild.setAttribute('role', 'button');
   }
 
   var basicNodeItems = this.makeNodeItems_(node);
@@ -437,8 +454,10 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
       var body = this.createElement('ul');
       if (branch.bodyNode) {
         body = generateInnerBody(branch.bodyNode);
-      } else {
-        body.appendChild(this.makeTextItem(this.blankText_));
+      } else if (this.blockJoiner.blockNode) {
+        var bodyNode = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
+        var text = 'Insert within ' + branch.text;
+        body.appendChild(this.makeConnectionItem_(bodyNode, text));
       }
       descendantItems.push(body);
     }
@@ -460,7 +479,9 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     }
   }
 
-  descendantItems.push(endLabel);
+  if (endLabel) {
+    descendantItems.push(endLabel);
+  }
 
   if (basicNodeItems.final) {
     descendantItems.push(basicNodeItems.final);
@@ -526,6 +547,7 @@ Blockly.Linearization.prototype.makeBlockFocusView_ = function(rootNode) {
       .filter(Boolean)
       .forEach(elem => sublist.appendChild(elem));
   }
+  // this.makeShadowBlockItems_(rootNode, sublist)
 
   if (rootNode.getLocation().mutator && (!isIfNode || showOnBranch)) {
     sublist.append(...this.makeMutatorList_(rootNode));
@@ -585,6 +607,13 @@ Blockly.Linearization.prototype.makeNodeItems_ = function(node) {
   return list;
 }
 
+/**
+ * Generates the html item that pushes the previous connection when
+ * this.blockJoiner.blockNode is not null and the node is the first child
+ * @param {!Blockly.ASTNode} node the node where node.prev() is called
+ * @return {HTMLElement} a list element describing that pushes node.prev() to
+ * this.blockJoiner when possible, null otherwise
+ */
 Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
   var blockNode = this.blockJoiner.blockNode;
   var display = blockNode !== node && blockNode;
@@ -598,6 +627,13 @@ Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
   return null;
 }
 
+/**
+ * Generates the html item that pushes the next connection to this.blockJoiner
+ * when this.blockJoiner.blockNode is not null
+ * @param {!Blockly.ASTNode} node the node where node.next() is called
+ * @return {HTMLElement} a list element describing that pushes node.next() to
+ * this.blockJoiner when possible, null otherwise
+ */
 Blockly.Linearization.prototype.makeNextConnectionItem_ = function(node) {
   var blockNode = this.blockJoiner.blockNode;
   var display = blockNode !== node && blockNode;
@@ -986,11 +1022,11 @@ Blockly.Linearization.prototype.makeIfBracketItem_ = function(node, branch) {
           text + ' (click to fill)');
     } else {
       bracketItem = this.makeBlockItem_(node, branch);
-      bracketItem.innerHTML = text;
+      bracketItem.firstChild.textContent = text;
     }
   } catch(e) {
     bracketItem = this.makeBlockItem_(node, branch);
-    bracketItem.innerHTML = text;
+    bracketItem.firstChild.textContent = text;
   }
   return bracketItem;
 };
@@ -1019,6 +1055,24 @@ Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
   var colorString = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
   listElem.style['color'] = colorString;
   return listElem;
+}
+
+/**
+* Creates immediately clickable/interactable field items for shadow blocks
+* for some block node.
+* @param {Blockly.ASTNode} node the block to add items for
+* @param {HTMLElement} list the list to which to add items to
+* @private
+*/
+Blockly.Linearization.prototype.makeShadowBlockItems_ = function(node, list) {
+  console.log('hi');
+  var inline = node.getFirstInlineBlock();
+  if (inline) {
+    inline.sequence(Blockly.Linearization.nextInlineInput)
+      // .map(node => this.makeInputItem_(node))
+      // .filter(Boolean)
+      // .forEach(elem => sublist.appendChild(elem));
+  }
 }
 
 /**
@@ -1164,7 +1218,7 @@ Blockly.Linearization.prototype.makePitchItem_ = function(field) {
       elem.setAttribute('index', newIndex);
 
       try {
-        field.setValue(value);
+        field.setValue(newIndex);
         elem.replaceChild(textNode, elem.firstChild);
         break;
       } catch (e) { // not a variable, so value can't be set
@@ -1254,7 +1308,10 @@ Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
  */
 Blockly.Linearization.prototype.makeTextItem = function(text) {
   var listElem = this.createElement('li');
-  listElem.appendChild(document.createTextNode(text));
+  var spanElem = this.createElement('span');
+  spanElem.appendChild(document.createTextNode(text));
+  // listElem.appendChild(document.createTextNode(text));
+  listElem.appendChild(spanElem);
   return listElem;
 }
 
