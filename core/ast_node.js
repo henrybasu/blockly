@@ -785,10 +785,39 @@ Blockly.ASTNode.prototype.getFirstSiblingBlock = function() {
  * {@code this.sequence(n => n.out(), includeThis)}.
  * @param {boolean=} includeThis false by default. If true, the returned stack will
  * contain this at the bottom, otherwise it will not.
- * @return {Array<Blockly.ASTNode>} An ast nodes wrapping all parent blocks to
- * this, pushed to the stack from this to the root of the ast tree.
+ * @return {Array<Blockly.ASTNode>} An array of ast nodes wrapping all parent
+ * blocks to this, pushed to the stack from this to the root of the ast tree.
  * @author macaccesslab@gmail.com (Logan Caraco in Macalester Lab)
  */
 Blockly.ASTNode.prototype.getParentStack = function(includeThis=false) {
   return this.sequence(n => n.out(), includeThis);
+}
+
+/**
+ * Find the first node previous to this block, or out if there is none
+ * @return {Blockly.ASTNode} An ast node that wraps the first block previous to
+ * or surrounding this block in the ast.
+ * Null if there are no such blocks.
+ * @author macaccesslab@gmail.com (Logan Caraco in Macalester Lab)
+ */
+Blockly.ASTNode.prototype.getFirstMoveParent = function() {
+  var type = this.getType();
+  if ((type == Blockly.ASTNode.types.BLOCK ||
+      type == Blockly.ASTNode.types.PREVIOUS ||
+      type == Blockly.ASTNode.types.NEXT) && this.prev()) {
+    return this.prev();
+  }
+  return this.out();
+}
+
+/**
+ * Generate a stack containing all blocks starting at this node that would
+ * change the position of this in the AST if moved
+ * @return {Array<Blockly.ASTNode>} An array of ast nodes wrapping all parent
+ * blocks to this that would change this's postion in the AST if they moved
+ * @author macaccesslab@gmail.com (Logan Caraco in Macalester Lab)
+ */
+Blockly.ASTNode.prototype.getMoveParentBlocks = function() {
+  return this.sequence(n => n.getFirstMoveParent())
+      .filter(n => n.getType() == Blockly.ASTNode.types.BLOCK);
 }
