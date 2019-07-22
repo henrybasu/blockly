@@ -56,6 +56,8 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   /** @const @private */
   this.blankText_ = 'NOTHING';
 
+  this.ordering = [];
+
   workspace.addChangeListener(e => this.generateList_(e));
 }
 
@@ -81,7 +83,7 @@ Blockly.Linearization.BlockJoiner = function() {
 /**
  * Attempt to connect this item. item must be Blockly.Block or
  * Blockly.Connection.
- * @param {Block.ASTNode} item
+ * @param {Blockly.ASTNode} item
  * @return {boolean} true if successfully pushed, false if push fails. Note:
  * a push can be successful without moving the block/connecting the connection
  */
@@ -89,10 +91,6 @@ Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
   if (item.getLocation() instanceof Blockly.Block) {
     this.blockNode = item;
   } else if (item.getLocation() instanceof Blockly.Connection) {
-    var parentBlocks = item.getParentStack(true).map(n => n.getLocation());
-    if (this.blockNode && parentBlocks.includes(this.blockNode.getLocation())) {
-      return false;
-    }
     this.connectionNode = item;
   } else {
     console.warn('fell through push types', item)
@@ -222,19 +220,23 @@ Blockly.Linearization.prototype.generateList_ = function(e) {
  * @private
  */
 Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
+  this.cooldown = this.cooldown && this.cooldown < new Date().getTime();
+
   var node;
 
   switch (e.type) {
     case Blockly.Events.BLOCK_MOVE:
+      if (this.cooldown) {
+        console.warn('Event skipped!');
+        return;
+      }
       var block = this.workspace.getBlockById(e.blockId);
       node = block && Blockly.ASTNode.createBlockNode(block);
-      if (block && this.blockJoiner.connectionNode) {
-        this.blockJoiner.push(node);
-      }
       break;
     case Blockly.Events.BLOCK_CREATE:
       var block = this.workspace.getBlockById(e.blockId);
       node = block && Blockly.ASTNode.createBlockNode(block);
+      this.cooldown = node && new Date().getTime() + 100;
       break;
     case Blockly.Events.UI:
       if (e.element !== 'selected' && e.element !== 'click') {
@@ -244,9 +246,6 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
       } else {
         var block = this.workspace.getBlockById(e.blockId);
         node = Blockly.ASTNode.createBlockNode(block);
-        if (this.blockJoiner.connectionNode) {
-          this.blockJoiner.push(node);
-        }
       }
       break;
     case Blockly.Events.BLOCK_DELETE:
@@ -587,31 +586,28 @@ Blockly.Linearization.prototype.makeBlockFocusView_ = function(rootNode) {
 Blockly.Linearization.prototype.makeNodeItems_ = function(node) {
   var list = [];
 
-  var disp = this.blockJoiner.blockNode !== node && this.blockJoiner.blockNode;
+  var blockNode = this.blockJoiner.blockNode;
+  var disp = this.blockJoiner.blockNode !== node && blockNode;
   var prevConn = node.prev();
   var dispPrev = prevConn && !prevConn.prev();
   if (disp && dispPrev) {
-    try {
-      prevConn.getLocation().checkConnection_(
-        this.blockJoiner.blockNode.next().getLocation());
+    if (Blockly.Linearization.checkConnection_(prevConn, blockNode.next())) {
       // ***Requires Localization***
       list.push(this.makeConnectionItem_(prevConn, 'Insert above'));
-    } catch (e) { /* invalid connection point */ }
+    }
   }
 
   list.push(this.makeBlockItem_(node));
 
   var nextConn = node.next();
   if (disp && nextConn) {
-    try {
-      nextConn.getLocation().checkConnection_(
-        this.blockJoiner.blockNode.prev().getLocation());
+    if (Blockly.Linearization.checkConnection_(nextConn, blockNode.prev())) {
       var last = !nextConn.next() ||
           nextConn.next().getType() !== Blockly.ASTNode.types.PREVIOUS;
       // ***Requires Localization***
       var text = last? 'Insert below': 'Insert between';
       list.push(this.makeConnectionItem_(node.next(), text));
-    } catch (e) { /* invalid connection point */ }
+    }
   }
 
   return list;
@@ -982,12 +978,16 @@ Blockly.Linearization.prototype.makeIfBracketItem_ = function(node, branch) {
 
   var bracketItem;
   try {
-    var potential = this.blockJoiner.blockNode.prev();
-    branch.condConnection.checkConnection_(potential.getLocation());
-    // ***Requires Localization***
-    var temp = Blockly.ASTNode.createConnectionNode(branch.condConnection);
-    bracketItem = this.makeConnectionItem_(temp,
-        text + ' (click to fill)');
+    var blockNode = this.blockJoiner.blockNode;
+    var condConnectionNode = Blockly.ASTNode.createConnectionNode(branch.condConnection);
+    if (Blockly.Linearization.checkConnection_(condConnectionNode, blockNode.prev())) {
+      // ***Requires Localization***
+      bracketItem = this.makeConnectionItem_(condConnectionNode,
+          text + ' (click to fill)');
+    } else {
+      bracketItem = this.makeBlockItem_(node, branch);
+      bracketItem.innerHTML = text;
+    }
   } catch(e) {
     bracketItem = this.makeBlockItem_(node, branch);
     bracketItem.firstChild.textContent = text;
@@ -1241,13 +1241,10 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
     return returnListItem;
   }
 
-  if (this.blockJoiner.blockNode) {
-    try {
-      returnNode.getLocation().checkConnection_(
-        this.blockJoiner.blockNode.prev().getLocation());
-      // ***Requires Localization***
-      return this.makeConnectionItem_(returnNode, 'Insert in return');
-    } catch (e) { /* invalid connection point */ }
+  var blockNode = this.blockJoiner.blockNode;
+  if (blockNode &&
+      Blockly.Linearization.checkConnection_(returnNode, blockNode.prev())) {
+    return this.makeConnectionItem_(returnNode, 'Insert in return');
   }
 
   // ***Requires Localization***
@@ -1263,7 +1260,7 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
  */
 Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
   // ***Requires Localization***
-  var text = this.blockJoiner.blockNode? 'Move me instead': 'Move me';
+  var text = this.blockJoiner.blockNode? 'Move me instead': 'Move me and blocks below';
   var element = this.makeTextItem(text);
   element.addEventListener('click', e => this.moveItemOnclick_(node, e));
   return element;
@@ -1357,7 +1354,24 @@ Blockly.Linearization.prototype.clearHighlighted = function() {
 Blockly.Linearization.prototype.setFontSize = function (size) {
   this.fontSize_ = size;
   this.generateList_();
-};
+}
+
+/**
+ * Returns wether or not conn can connect to blockConn.
+ * @param {!Blockly.ASTNode} conn the node containing the main connection point
+ * @param {!Blockly.ASTNode} blockConn the node containing the connection point
+ * on a block where that block might be connected to conn
+ */
+Blockly.Linearization.checkConnection_ = function(conn, blockConn) {
+  try {
+    conn.getLocation().checkConnection_(blockConn.getLocation());
+  } catch(e) {
+    return false;
+  }
+
+  var parentBlocks = conn.getMoveParentBlocks().map(n => n.getLocation());
+  return !parentBlocks.includes(blockConn.getLocation().getSourceBlock());
+}
 
 /**
  * Returns the list of objects representing each branch of the if in order
