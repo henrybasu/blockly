@@ -1035,8 +1035,9 @@ Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
     text += ' (moving me...)';
   }
   var listElem = this.makeTextItem(text);
-  listElem.id = "li" + block.id;
-  listElem.blockId = block.id;
+  listElem.firstChild.setAttribute('role', 'button');
+  listElem.setAttribute('id', "li" + block.id);
+  listElem.setAttribute('blockId', block.id);
   listElem.addEventListener('click', e => this.listItemOnclick_(node, branch));
   var colorString = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
   listElem.style['color'] = colorString;
