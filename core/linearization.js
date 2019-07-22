@@ -147,7 +147,7 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
 
   try {
     insertPointNode.getLocation().connect(providedBlock);
-  } catch (e) {
+  } catch (e) { // should never happen
     console.warn(e);
     if (e instanceof DOMException) {
       document.location.reload();
@@ -589,13 +589,11 @@ Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
   var blockNode = this.blockJoiner.blockNode;
   var display = blockNode !== node && blockNode;
   var prevConn = node.prev();
-  if (display && prevConn &&
+  var displayPrev = prevConn && !prevConn.prev();
+  if (display && displayPrev &&
       Blockly.Linearization.checkConnection_(prevConn, blockNode.next())) {
-    var first = !prevConn.prev() ||
-        prevConn.prev().getType() !== Blockly.ASTNode.types.NEXT;
     // ***Requires Localization***
-    var text = first? 'Insert above': 'Insert between';
-    return this.makeConnectionItem_(prevConn, text);
+    return this.makeConnectionItem_(prevConn, 'Insert above');
   }
   return null;
 }
@@ -604,11 +602,13 @@ Blockly.Linearization.prototype.makeNextConnectionItem_ = function(node) {
   var blockNode = this.blockJoiner.blockNode;
   var display = blockNode !== node && blockNode;
   var nextConn = node.next();
-  var displayNext = nextConn && !nextConn.next();
-  if (display && displayNext &&
+  if (display && nextConn &&
       Blockly.Linearization.checkConnection_(nextConn, blockNode.prev())) {
     // ***Requires Localization***
-    return this.makeConnectionItem_(node.next(), 'Insert below');
+    var last = !nextConn.next() ||
+        nextConn.next().getType() !== Blockly.ASTNode.types.PREVIOUS;
+    var text = last? 'Insert below': 'Insert between';
+    return this.makeConnectionItem_(node.next(), text);
   }
   return null;
 }
