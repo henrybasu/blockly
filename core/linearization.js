@@ -429,8 +429,10 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
 
   const alterAriaLabel = (item) => {
     // ***Requires Localization***
-    item.firstChild.setAttribute('aria-label', item.firstChild.textContent
-        + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+    if (block.getSurroundParent()) {     
+      item.firstChild.setAttribute('aria-label', item.firstChild.textContent
+          + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+    }
     // ***Requires Localization***
     item.firstChild.setAttribute('role', 'button');
   }
@@ -446,9 +448,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     var branches = Blockly.Linearization.getIfBranches(node);
     for (var branch of branches) {
       var headerItem = this.makeIfBracketItem_(node, branch);
-      if (block.getSurroundParent()) {
-        alterAriaLabel(headerItem);
-      }
+      alterAriaLabel(headerItem);
       descendantItems.push(headerItem);
 
       var body = this.createElement('ul');
@@ -463,9 +463,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     }
   } else {
     var mainElem = basicNodeItems.main;
-    if (block.getSurroundParent()) {
-      alterAriaLabel(mainElem);
-    }
+    alterAriaLabel(mainElem);
     descendantItems.push(mainElem);
 
     if (node.getFirstNestedBlock()) {
@@ -1049,8 +1047,9 @@ Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
     text += ' (moving me...)';
   }
   var listElem = this.makeTextItem(text);
-  listElem.id = "li" + block.id;
-  listElem.blockId = block.id;
+  listElem.firstChild.setAttribute('role', 'button');
+  listElem.setAttribute('id', "li" + block.id);
+  listElem.setAttribute('blockId', block.id);
   listElem.addEventListener('click', e => this.listItemOnclick_(node, branch));
   var colorString = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
   listElem.style['color'] = colorString;
