@@ -49,7 +49,7 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
    * @type {number}
    * @private
    */
-  this.fontSize_ = 12;
+  this.fontSize_ = 14;
 
 
   // ***Requires Localization***
