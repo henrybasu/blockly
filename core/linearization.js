@@ -147,7 +147,7 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
 
   try {
     insertPointNode.getLocation().connect(providedBlock);
-  } catch (e) {
+  } catch (e) { // should never happen
     console.warn(e);
     if (e instanceof DOMException) {
       document.location.reload();
@@ -348,51 +348,18 @@ Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
   var stacks = firstStack.sequence(n => n.next());
 
   this.marker = 'A';
-  var mappingFn = this.blockJoiner.blockNode?
-    stack => this.makePartialStackItem_(stack):
-    stack => this.makeFullStackItem_(stack);
-
-  stacks.map(mappingFn).forEach(item => wsList.append(item));
+  stacks.map(stack => this.makeStackItem_(stack))
+      .forEach(item => wsList.append(item));
 
   return wsList;
 }
-
-/**
- * Generates the stack item that contains all the top-level information
- * as well as movement options for the provided stack. Designed for use during
- * move operations
- * @param {!Blockly.ASTNode} stack the stack to represent
- * @return {HTMLElement} a list element describing the top-level of the stack as
- * a color-coded, linked sublist
- */
-Blockly.Linearization.prototype.makePartialStackItem_ = function(stack) {
-  // ***Requires Localization***
-  var stackItem = this.makeTextItem('Stack ' + this.marker);
-  this.marker = Blockly.Linearization.nextStackMarker(this.marker);
-  var stackItemList = this.createElement('ul');
-
-  // for each block node in the top of the stack
-  var firstNode = stack.in();
-  if (firstNode.getType() !== Blockly.ASTNode.types.BLOCK) {
-    firstNode = firstNode.getFirstSiblingBlock();
-  }
-
-  // add a new list element representing the block to the list
-  firstNode.sequence(n => n.getFirstSiblingBlock())
-    .map(node => this.makeNodeItems_(node))
-    .forEach(items => stackItemList.append(...items));
-
-  stackItem.appendChild(stackItemList);
-  return stackItem;
-}
-
 /**
  * Generates the html li that contains listings for all items in the stack
  * @param {!Blockly.ASTNode} stackNode the stack to represent
  * @return {HTMLElement} a list element describing the complete stack as
  * a color-coded, linked sublist
  */
-Blockly.Linearization.prototype.makeFullStackItem_ = function(stackNode) {
+Blockly.Linearization.prototype.makeStackItem_ = function(stackNode) {
   var stackItem = this.createElement('li');
   // ***Requires Localization***
   var stackElem = this.makeTextItem('Stack ' + this.marker);
@@ -428,13 +395,14 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
   var block = node.getLocation();
   var nestedName = this.getNestingBlockName_(block);
   // ***Requires Localization***
-  var endList = nestedName ? [this.makeTextItem('end ' + nestedName)]: [];
-
+  var endLabel = nestedName && this.makeTextItem('end ' + nestedName);
+  if (endLabel) {
+    	endLabel.firstChild.setAttribute('role', 'text');
+  }
   if (node.getType() !== Blockly.ASTNode.types.BLOCK
     || (block.outputConnection && block.getParent())
     || block.getRootBlock() !== rootBlock) {
-    endList[0].firstChild.setAttribute('role', 'text');
-    return endList;
+    return endLabel? [endLabel]: [];
   }
 
   // recursively generates a ul containing all html representations of children
@@ -446,17 +414,26 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     return nestedItemList;
   }
 
+  const alterAriaLabel = (item) => {
+      // ***Requires Localization***
+      item.firstChild.setAttribute('aria-label', item.innerHTML
+      + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+      item.firstChild.setAttribute('role', 'button');
+  }
+
+  var basicNodeItems = this.makeNodeItems_(node);
   var descendantItems = [];
+
+  if (basicNodeItems.first) {
+    descendantItems.push(basicNodeItems.first);
+  }
 
   if (block.type === 'controls_if') {
     var branches = Blockly.Linearization.getIfBranches(node);
     for (var branch of branches) {
       var headerItem = this.makeIfBracketItem_(node, branch);
       if (block.getSurroundParent()) {
-        // ***Requires Localization***
-        headerItem.firstChild.setAttribute('aria-label', headerItem.firstChild.textContent
-        + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
-        headerItem.firstChild.setAttribute('role', 'button');
+        alterAriaLabel(headerItem);
       }
       descendantItems.push(headerItem);
 
@@ -469,15 +446,12 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
       descendantItems.push(body);
     }
   } else {
-    var listElem = this.makeBlockItem_(node);
+    var mainElem = basicNodeItems.main;
     if (block.getSurroundParent()) {
-      // ***Requires Localization***
-      listElem.firstChild.setAttribute('aria-label', listElem.firstChild.textContent
-        + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
-      listElem.firstChild.setAttribute('role', 'button');
+      alterAriaLabel(mainElem);
     }
+    descendantItems.push(mainElem);
 
-    descendantItems.push(listElem);
     if (node.getFirstNestedBlock()) {
       var body = generateInnerBody(node.getFirstNestedBlock());
 
@@ -489,8 +463,13 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     }
   }
 
-  endList[0].firstChild.setAttribute('role', 'text');
-  return descendantItems.concat(endList);
+  descendantItems.push(endLabel);
+
+  if (basicNodeItems.final) {
+    descendantItems.push(basicNodeItems.final);
+  }
+
+  return descendantItems;
 }
 
 /**
@@ -584,37 +563,58 @@ Blockly.Linearization.prototype.makeBlockFocusView_ = function(rootNode) {
  * Returns an ordered Array of linked html list items that represent the
  * movement options of the node and the node itself
  * @param {!Blockly.ASTNode} node the node to represent
- * @return {Array<HTMLElement>} the html representation of node and its options
+ * @return {Array<HTMLElement>} an array containing the html representation of
+ * node and its options
  * @private
  */
 Blockly.Linearization.prototype.makeNodeItems_ = function(node) {
   var list = [];
 
-  var blockNode = this.blockJoiner.blockNode;
-  var disp = this.blockJoiner.blockNode !== node && blockNode;
-  var prevConn = node.prev();
-  var dispPrev = prevConn && !prevConn.prev();
-  if (disp && dispPrev) {
-    if (Blockly.Linearization.checkConnection_(prevConn, blockNode.next())) {
-      // ***Requires Localization***
-      list.push(this.makeConnectionItem_(prevConn, 'Insert above'));
-    }
+  var prevConnectionItem = this.makePrevConnectionItem_(node);
+  if (prevConnectionItem) {
+    list.push(prevConnectionItem);
+    list.first = prevConnectionItem;
   }
 
-  list.push(this.makeBlockItem_(node));
+  var main = this.makeBlockItem_(node);
+  list.push(main);
+  list.main = main;
 
-  var nextConn = node.next();
-  if (disp && nextConn) {
-    if (Blockly.Linearization.checkConnection_(nextConn, blockNode.prev())) {
-      var last = !nextConn.next() ||
-          nextConn.next().getType() !== Blockly.ASTNode.types.PREVIOUS;
-      // ***Requires Localization***
-      var text = last? 'Insert below': 'Insert between';
-      list.push(this.makeConnectionItem_(node.next(), text));
-    }
+  var nextConnectionItem = this.makeNextConnectionItem_(node);
+  if (nextConnectionItem) {
+    list.push(nextConnectionItem);
+    list.final = nextConnectionItem;
   }
 
   return list;
+}
+
+Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
+  var blockNode = this.blockJoiner.blockNode;
+  var display = blockNode !== node && blockNode;
+  var prevConn = node.prev();
+  var displayPrev = prevConn && !prevConn.prev();
+  if (display && displayPrev &&
+      Blockly.Linearization.checkConnection_(prevConn, blockNode.next())) {
+    // ***Requires Localization***
+    return this.makeConnectionItem_(prevConn, 'Insert above');
+  }
+  return null;
+}
+
+Blockly.Linearization.prototype.makeNextConnectionItem_ = function(node) {
+  var blockNode = this.blockJoiner.blockNode;
+  var display = blockNode !== node && blockNode;
+  var nextConn = node.next();
+  if (display && nextConn &&
+      Blockly.Linearization.checkConnection_(nextConn, blockNode.prev())) {
+    // ***Requires Localization***
+    var last = !nextConn.next() ||
+        nextConn.next().getType() !== Blockly.ASTNode.types.PREVIOUS;
+    var text = last? 'Insert below': 'Insert between';
+    return this.makeConnectionItem_(node.next(), text);
+  }
+  return null;
 }
 
 /**
