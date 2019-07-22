@@ -428,11 +428,12 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
   var block = node.getLocation();
   var nestedName = this.getNestingBlockName_(block);
   // ***Requires Localization***
-  var endList = nestedName? [this.makeTextItem('end ' + nestedName)]: [];
+  var endList = nestedName ? [this.makeTextItem('end ' + nestedName)]: [];
 
   if (node.getType() !== Blockly.ASTNode.types.BLOCK
     || (block.outputConnection && block.getParent())
     || block.getRootBlock() !== rootBlock) {
+    endList[0].firstChild.setAttribute('role', 'text');
     return endList;
   }
 
@@ -453,8 +454,9 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
       var headerItem = this.makeIfBracketItem_(node, branch);
       if (block.getSurroundParent()) {
         // ***Requires Localization***
-        headerItem.setAttribute('aria-label', headerItem.firstChild.textContent
+        headerItem.firstChild.setAttribute('aria-label', headerItem.firstChild.textContent
         + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+        headerItem.firstChild.setAttribute('role', 'button');
       }
       descendantItems.push(headerItem);
 
@@ -470,8 +472,9 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     var listElem = this.makeBlockItem_(node);
     if (block.getSurroundParent()) {
       // ***Requires Localization***
-      listElem.setAttribute('aria-label', listElem.firstChild.textContent
+      listElem.firstChild.setAttribute('aria-label', listElem.firstChild.textContent
         + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
+      listElem.firstChild.setAttribute('role', 'button');
     }
 
     descendantItems.push(listElem);
@@ -486,6 +489,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     }
   }
 
+  endList[0].firstChild.setAttribute('role', 'text');
   return descendantItems.concat(endList);
 }
 
