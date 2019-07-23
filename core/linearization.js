@@ -1086,34 +1086,36 @@ Blockly.Linearization.prototype.makeShadowBlockItems_ = function(node, list) {
  * and text fields.
  * @private
  */
-Blockly.Linearization.prototype.makeEditableFieldItem_ = function(node) {
+Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item) {
   var listElem;
   try {
-    var field = node.fieldRow[0];
+    var field = item.fieldRow[0];
   } catch {
-    var field = node;
+    var field = item;
   }
   if (field instanceof Blockly.FieldDropdown) {
     return this.makeDropdownItem_(field)
   }
   var fieldName = field.name;
-  if (field.getText() === "") {
-    // ***Requires Localization***
-    listElem = this.makeTextItem('[Enter some text]');
-  } else {
-    listElem = this.makeTextItem(field.getText());
+  listElem = this.createElement('input');
+  listElem.setAttribute('id', 'li' + field.getSourceBlock().id);
+
+  if (field instanceof Blockly.FieldTextInput) {
+    listElem.setAttribute('type', 'text');
   }
-  listElem.id = "li" + field.getSourceBlock().id;
-  listElem.contentEditable = true;
+  if (field instanceof Blockly.FieldNumber) {
+    listElem.setAttribute('type', 'number');
+  }
+
   listElem.addEventListener('blur', (event) => {
     var block = this.workspace.getBlockById(listElem.id.slice(2));
-    block.setFieldValue(listElem.innerText, fieldName);
+    block.setFieldValue(listElem.value, fieldName);
   });
   listElem.addEventListener('keyup', (event) => {
     event.preventDefault();
     if (event.keyCode === 13) {
       var block = this.workspace.getBlockById(listElem.id.slice(2));
-      block.setFieldValue(listElem.innerText, fieldName);
+      block.setFieldValue(listElem.value, fieldName);
     }
   });
   return listElem;
