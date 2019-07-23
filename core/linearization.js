@@ -51,10 +51,13 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
    */
   this.fontSize_ = 14;
 
-
   // ***Requires Localization***
   /** @const @private */
   this.blankText_ = 'NOTHING';
+
+  // ***Requires Localization***
+  /** @const @private */
+  this.returnText_ = 'return ';
 
   this.ordering = [];
 
@@ -429,7 +432,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
 
   const alterAriaLabel = (item) => {
     // ***Requires Localization***
-    if (block.getSurroundParent()) {     
+    if (block.getSurroundParent()) {
       item.firstChild.setAttribute('aria-label', item.firstChild.textContent
           + ', inside ' + this.getNestingBlockName_(block.getSurroundParent()));
     }
@@ -470,6 +473,8 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
       var body = generateInnerBody(node.getFirstNestedBlock());
 
       if (block.type === 'procedures_defreturn') {
+        var endIndex = mainElem.innerHTML.lastIndexOf(this.returnText_);
+        mainElem.innerHTML = mainElem.innerHTML.slice(0, endIndex);
         body.append(this.makeReturnItem_(node));
       }
 
@@ -532,7 +537,7 @@ Blockly.Linearization.prototype.makeBlockFocusView_ = function(rootNode) {
   var warning = rootNode.getLocation().warning;
   if (warning && warning.getText && warning.getText().trim().length) {
     var warnItem = this.makeTextItem(warning.getText());
-    warnItem.style['color'] = 'rgb(250, 50, 50)';
+    warnItem.style.color = 'rgb(250, 50, 50)';
     sublist.appendChild(warnItem);
   }
 
@@ -866,7 +871,7 @@ Blockly.Linearization.prototype.makeConnectionItem_ = function(node, text) {
   var connection = node.getLocation();
   item.id = "li" + connection.id;
   item.blockId = connection.id;
-  item.style['color'] = 'hsl(0, 0%, 0%)';
+  item.style.color = 'hsl(0, 0%, 0%)';
   item.addEventListener('click', e => this.moveItemOnclick_(node, e));
   return item;
 }
@@ -888,7 +893,7 @@ Blockly.Linearization.prototype.makeParentItem_ = function(node) {
   }
   item.appendChild(document.createTextNode(labelText + ' > '));
   if (node) {
-    item.style['color'] = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
+    item.style.color = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
   }
   // ***Requires Localization***
   item.setAttribute('aria-label', 'Jump to ' + labelText);
@@ -1052,7 +1057,7 @@ Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
   listElem.setAttribute('blockId', block.id);
   listElem.addEventListener('click', e => this.listItemOnclick_(node, branch));
   var colorString = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
-  listElem.style['color'] = colorString;
+  listElem.style.color = colorString;
   return listElem;
 }
 
@@ -1270,8 +1275,8 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
   if (returnNode.in() && returnNode.in().next()) {
     var returnBlock = returnNode.in().next();
     var returnListItem = this.makeBlockItem_(returnBlock);
-    // ***Requires Localization***
-    returnListItem.innerHTML = 'return ' + returnListItem.innerHTML;
+    returnListItem.firstChild.innerHTML = this.returnText_ +
+        returnListItem.firstChild.innerHTML;
     return returnListItem;
   }
 
@@ -1281,8 +1286,7 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
     return this.makeConnectionItem_(returnNode, 'Insert in return');
   }
 
-  // ***Requires Localization***
-  return this.makeTextItem('return ' + this.blankText_);
+  return this.makeTextItem(this.returnText_ + this.blankText_);
 }
 
 /**
