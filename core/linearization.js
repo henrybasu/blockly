@@ -45,11 +45,24 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   this.mainNavList = mainNavList;
 
   /**
+   * Override existing style with default linearization css
+   * @type {boolean}
+   */
+  this.enforceDefaultCss = true;
+
+  /**
    * The font size to generate in
    * @type {number}
    * @private
    */
   this.fontSize_ = 14;
+
+  /**
+   * The number of pixels wide to generate indents in the mainNavList
+   * @type {number}
+   * @private
+   */
+  this.indentPixels_ = 8;
 
   // ***Requires Localization***
   /** @const @private */
@@ -185,10 +198,10 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
 };
 
 /**
- * The EventListener for workspace events. On fire, fully redraws linearization,
+ * The ChangeListener for workspace events. On fire, fully redraws linearization,
  * generating and replacing the mainNavList and parentNav.
  * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
- * EventListener.
+ * ChangeListener.
  * @private
  */
 Blockly.Linearization.prototype.generateList_ = function(e) {
@@ -213,6 +226,24 @@ Blockly.Linearization.prototype.generateList_ = function(e) {
   newDiv.setAttribute('id', 'mainNavList');
   navListDiv.parentNode.replaceChild(newDiv, navListDiv);
   this.mainNavList = newDiv;
+
+  if (this.enforceDefaultCss) {
+    this.applyNavStyle_();
+  }
+}
+
+/**
+ * Applies the indent and bulleting scheme to the mainNavList
+ * @private
+ */
+Blockly.Linearization.prototype.applyNavStyle_ = function() {
+    var children = [...mainNavList.getElementsByTagName('*')]
+        .filter(child => child.tagName !== 'SPAN');
+
+    children.forEach(child => child.style['list-style-type'] = 'none');
+
+    var padding = this.indentPixels_ + 'px';
+    children.forEach(child => child.style['padding-inline-start'] = padding);
 }
 
 /**
@@ -226,7 +257,6 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
   this.cooldown = this.cooldown && this.cooldown < new Date().getTime();
 
   var node;
-
   switch (e.type) {
     case Blockly.Events.BLOCK_MOVE:
       if (this.cooldown) {
@@ -1391,9 +1421,19 @@ Blockly.Linearization.prototype.clearHighlighted = function() {
  * Sets the size of the font for the linearization and calls generateList_()
  * @param {number} size the new font size for the linearization
  */
-Blockly.Linearization.prototype.setFontSize = function (size) {
+Blockly.Linearization.prototype.setFontSize = function(size) {
   this.fontSize_ = size;
   this.generateList_();
+}
+
+/**
+ * Sets the number of pixels wide the list indent should be in mainNavList and
+ * calls applyNavStyle_();
+ * @param {number} pixels the new indent width for the linearization
+ */
+Blockly.Linearization.prototype.setIndentPixels = function(pixels) {
+  this.indentPixels_ = pixels;
+  this.applyNavStyle_();
 }
 
 /**
