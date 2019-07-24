@@ -978,10 +978,10 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
   switch (node.getType()) {
     case Blockly.ASTNode.types.FIELD:
       if (location instanceof Blockly.FieldDropdown) {
-        return this.makeDropdownItem_(location, node);
+        return this.makeDropdownItem_(location, node, false);
       }
       if (Blockly.FieldPitch && (location instanceof Blockly.FieldPitch)) {
-        return this.makePitchItem_(location);
+        return this.makeDropdownItem_(location, node, true);
       }
       if (location instanceof Blockly.FieldNumber
           || location instanceof Blockly.FieldTextInput) {
@@ -1178,8 +1178,12 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item, node) {
  * @return {?HTMLElement} a clickable representation of the field that toggles
  * options through the dropdown option list. If there are no options, null.
  */
-Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node) {
-  var options = field.getOptions();
+Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node, music) {
+  if (music) {
+    var options = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
+  } else {
+    var options = field.getOptions();
+  }
   if (!options.length) {
     return null;
   }
