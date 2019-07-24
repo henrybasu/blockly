@@ -33,22 +33,36 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   this.blockJoiner = new Blockly.Linearization.BlockJoiner();
 
   /**
-   * The element to generate parent nav in
+   * The element to generate parent nav in.
    * @type {HTMLElement}
    */
   this.parentNav = parentNav;
 
   /**
-   * The element to generate the main linearization in
+   * The element to generate the main linearization in.
    * @type {HTMLElement}
    */
   this.mainNavList = mainNavList;
 
   /**
-   * Override existing style with default linearization css
+   * Override existing style with default linearization css.
    * @type {boolean}
    */
   this.enforceDefaultCss = true;
+
+  /**
+   * The key used to determine whether or not to call this.generateList_.
+   * @type {Object}
+   * @private
+   */
+  this.renderKey_ = null;
+
+  /**
+   * The cooldown for changing this.selected in response to workspace events
+   * @type {number}
+   * @private
+   */
+  this.cooldown_ = 0;
 
   /**
    * The font size to generate in
@@ -58,14 +72,7 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   this.fontSize_ = 14;
 
   /**
-   * The key used to determine whether or not to call this.generateList_
-   * @type {Object}
-   * @private
-   */
-  this.renderKey_;
-
-  /**
-   * The number of pixels wide to generate indents in the mainNavList
+   * The number of pixels wide to generate indents in this.mainNavList.
    * @type {number}
    * @private
    */
@@ -102,9 +109,9 @@ Blockly.Linearization.BlockJoiner = function() {
 }
 
 /**
- * Attempt to connect this item. item must be Blockly.Block or
- * Blockly.Connection.
- * @param {Blockly.ASTNode} item
+ * Attempt to connect this item.
+ * item.getLocation() must be Blockly.Block or Blockly.Connection.
+ * @param {!Blockly.ASTNode} item
  * @return {boolean} true if successfully pushed, false if push fails. Note:
  * a push can be successful without moving the block/connecting the connection
  */
@@ -114,7 +121,7 @@ Blockly.Linearization.BlockJoiner.prototype.push = function(item) {
   } else if (item.getLocation() instanceof Blockly.Connection) {
     this.connectionNode = item;
   } else {
-    console.warn('fell through push types', item)
+    console.warn('fell through push types', item);
     return false;
   }
 
@@ -149,7 +156,7 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
       back = n => n.next();
       break;
     default:
-      console.warn('fell through', insertPointNode);
+      console.warn('fell through advance/back assignment', insertPointNode);
       return;
   }
 
@@ -168,12 +175,19 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
 
   try {
     insertPointNode.getLocation().connect(providedBlock);
-  } catch (e) { // should never happen
+  } catch (e) {
     console.warn(e);
-    if (e instanceof DOMException) {
+    if (e instanceof DOMException) { // should never happen
+      // If the code reaches this point, the user attempted to connect
+      // a block to one of its move children (see ASTNode.getMoveParentBlocks),
+      // creating a circular DOM, the only exit without freezing the tab is
+      // to force a reload
+
+      // If this happens again, g-d save us all.
       document.location.reload();
     }
   }
+
   // clear the values
   this.connectionNode = null;
   this.blockNode = null;
@@ -181,7 +195,7 @@ Blockly.Linearization.BlockJoiner.prototype.service_ = function() {
 
 /**
  * Attempts to disconnect the current block in this.blockNode and put in on the
- * workspace. Nulls this.blockNode if successful
+ * workspace. Nulls this.blockNode if successful.
  */
 Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
   try {
@@ -204,32 +218,27 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
 
 /**
  * The ChangeListener for workspace events. On fire, creates a promise to fully
- * redraw linearization if another request is not recieved in 100 millis
+ * redraw linearization if another request is not recieved in 100 millis.
  * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
  * ChangeListener.
  */
 Blockly.Linearization.prototype.onChange = function(e) {
-  const makePromise = () => {
-    this.renderKey_ = e;
+  this.renderKey_ = e;
 
-    new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (this.renderKey_ === e) {
-          this.renderKey_ = null;
-          this.generateList_(e);
-        } else if (!this.renderKey_) {
-          makePromise();
-        }
-      }, 100);
-    }).catch(console.log);
-  }
-
-  makePromise();
+  new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (this.renderKey_ === e) {
+        this.renderKey_ = null;
+        this.generateList_(e);
+      } else {
+        reject('skipped render');
+      }
+    }, 100);
+  }).catch(console.warn);
 }
 
 /**
- * Fully redraws linearization, generating and replacing the mainNavList and
- * parentNav.
+ * Fully redraws linearization, replacing the mainNavList and parentNav.
  * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
  * @private
  */
@@ -269,27 +278,26 @@ Blockly.Linearization.prototype.applyNavStyle_ = function() {
     var children = [...this.mainNavList.getElementsByTagName('*')]
         .filter(child => child.tagName !== 'SPAN');
 
-    children.forEach(child => child.style['list-style-type'] = 'none');
+  children.forEach(child => child.style['list-style-type'] = 'none');
 
-    var padding = this.indentPixels_ + 'px';
-    children.forEach(child => child.style['padding-inline-start'] = padding);
+  var padding = this.indentPixels_ + 'px';
+  children.forEach(child => child.style['padding-inline-start'] = padding);
 }
 
 /**
- * Takes a workspace event and uses the type of event to determine the next
- * selected.
+ * Uses the type of the event e to determine the next this.selected.
  * @param {!Blockly.Events.Abstract} e the workspace event that determines the
- * next selected.
+ * next selected
  * @private
  */
 Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
-  this.cooldown = this.cooldown && this.cooldown < new Date().getTime();
+  this.cooldown_ = this.cooldown_ && this.cooldown_ < new Date().getTime();
 
   var node;
   switch (e.type) {
     case Blockly.Events.BLOCK_MOVE:
-      if (this.cooldown) {
-        console.warn('Event skipped!');
+      if (this.cooldown_) {
+        console.warn('event skipped');
         return;
       }
       var block = this.workspace.getBlockById(e.blockId);
@@ -323,30 +331,33 @@ Blockly.Linearization.prototype.alterSelectedWithEvent_ = function(e) {
 }
 
 /**
- * Sets this.cooldown to 100 millis
+ * Sets this.cooldown_ to 100 millis
  * @private
  */
 Blockly.Linearization.prototype.startEventCooldown_ = function() {
-  this.cooldown = new Date().getTime() + 100;
+  this.cooldown_ = new Date().getTime() + 100;
 }
 
 /**
  * Generates and replaces the old parent-nav bar, using color-coded, linked
- * breadcrumbs. Always includes workspace.
- * @param {!Blockly.Workspace} Current workspace
+ * breadcrumbs. Always includes this.workspace.
  * @param {?Blockly.ASTNode} rootNode Generates breadcrumbs from rootNode's
- * parentStack up to and including rootNode.
+ * parentStack down to and including rootNode.
  * @private
  */
 Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
-  var pNav = this.parentNav;
-  pNav.innerHTML = '';
+  var pNav = this.createElement('ol');
+  if (this.enforceDefaultCss) {
+    pNav.style['display'] = 'inline';
+    pNav.style['list-style'] = 'none';
+    pNav.style['margin'] = '0px';
+    pNav.style['padding'] = '0px';
+  }
   pNav.appendChild(this.makeParentItem_());
 
   if (rootNode) {
-    rootNode.getParentStack(true)
+    rootNode.getParentStack(true).reverse()
         .filter(node => node.getType() === Blockly.ASTNode.types.BLOCK)
-        .reverse()
         .map(node => this.makeParentItem_(node))
         .forEach(elem => pNav.appendChild(elem));
   }
@@ -382,7 +393,7 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
       blockNode.getLocation().dispose(true);
     })
 
-    // ...make into new stack item
+    // ...make into new stack item...
     if (blockNode.prev()) {
       // if this has the ability to be mid-stack (unlike hat blocks)
       pNav.appendChild(deleteItem);
@@ -396,12 +407,15 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
       pNav.appendChild(newStackItem);
     }
 
+    // ...duplicate block item
     var duplicateItem = this.makeDuplicateItem_(this.blockJoiner.blockNode);
     if (duplicateItem) {
       pNav.appendChild(this.createElement('br'));
       pNav.appendChild(duplicateItem);
     }
   }
+
+  this.parentNav.innerHTML = pNav.outerHTML;
 }
 
 /**
@@ -420,8 +434,7 @@ Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
   var stacks = firstStack.sequence(n => n.next());
 
   this.marker = 'A';
-  stacks.map(stack => this.makeStackItem_(stack))
-      .forEach(item => wsList.append(item));
+  wsList.append(...stacks.map(stack => this.makeStackItem_(stack)));
 
   return wsList;
 }
@@ -446,6 +459,7 @@ Blockly.Linearization.prototype.makeStackItem_ = function(stackNode) {
   if (blockNode.getType() !== Blockly.ASTNode.types.BLOCK) {
     blockNode = blockNode.getFirstSiblingBlock();
   }
+
   var rootBlock = blockNode.getLocation();
   blockNode.sequence(n => n.getFirstSiblingBlock())
     .map(node => this.makeBlockList_(node, rootBlock))
@@ -528,8 +542,9 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
     alterAriaLabel(mainElem);
     descendantItems.push(mainElem);
 
-    if (node.getFirstNestedBlock()) {
-      var body = generateInnerBody(node.getFirstNestedBlock());
+    var firstNested = node.getFirstNestedBlock();
+    if (firstNested) {
+      var body = generateInnerBody(firstNested);
 
       if (block.type === 'procedures_defreturn') {
         var endIndex = mainElem.innerHTML.lastIndexOf(this.returnText_);
@@ -670,7 +685,8 @@ Blockly.Linearization.prototype.makeNodeItems_ = function(node) {
 
 /**
  * Generates the html item that pushes the previous connection when
- * this.blockJoiner.blockNode is not null and the node is the first child
+ * this.blockJoiner.blockNode is not null and the node is the first child in a
+ * list
  * @param {!Blockly.ASTNode} node the node where node.prev() is called
  * @return {HTMLElement} a list element describing that pushes node.prev() to
  * this.blockJoiner when possible, null otherwise
@@ -684,7 +700,8 @@ Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
   if (display && prevConn && displayPrev &&
       Blockly.Linearization.checkConnection_(prevConn, blockNode.next())) {
     // ***Requires Localization***
-    if (prevConn.prev() && prevConn.prev().getType() === Blockly.ASTNode.types.INPUT) {
+    if (prevConn.prev() &&
+        prevConn.prev().getType() === Blockly.ASTNode.types.INPUT) {
       return this.makeConnectionItem_(prevConn.prev(), 'Insert above');
     }
     return this.makeConnectionItem_(prevConn, 'Insert above');
