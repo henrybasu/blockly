@@ -651,12 +651,12 @@ Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
   var blockNode = this.blockJoiner.blockNode;
   var display = blockNode !== node && blockNode;
   var prevConn = node.prev();
-  var displayPrev = prevConn && (!prevConn.prev() || 
+  var displayPrev = prevConn && (!prevConn.prev() ||
       prevConn.prev().getType() !== Blockly.ASTNode.types.NEXT);
-  if (display && prevConn && displayPrev && 
+  if (display && prevConn && displayPrev &&
       Blockly.Linearization.checkConnection_(prevConn, blockNode.next())) {
     // ***Requires Localization***
-    if (prevConn.prev() && prevConn.prev().getType() === Blockly.ASTNode.types.INPUT) { 
+    if (prevConn.prev() && prevConn.prev().getType() === Blockly.ASTNode.types.INPUT) {
       return this.makeConnectionItem_(prevConn.prev(), 'Insert above');
     }
     return this.makeConnectionItem_(prevConn, 'Insert above');
@@ -695,7 +695,8 @@ Blockly.Linearization.prototype.makeNextConnectionItem_ = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.makeInnerInputList_ = function(inNode) {
-  if (!this.blockJoiner.blockNode) {
+  var blockNode = this.blockJoiner.blockNode;
+  if (!blockNode) {
     return [];
   }
   var inNodeSeq = inNode.sequence(n => n.next());
@@ -717,7 +718,9 @@ Blockly.Linearization.prototype.makeInnerInputList_ = function(inNode) {
       return inNodeSeq.length <= 1? '': ' ' + tracker.insertVal++;
     }
   }
-  return inNodeSeq.map(n => this.makeConnectionItem_(
+  return inNodeSeq
+      .filter(node => Blockly.Linearization.checkConnection_(node, blockNode))
+      .map(n => this.makeConnectionItem_(
             n,
             // ***Requires Localization***
             n.getParentInput() && n.getParentInput().type === Blockly.INPUT_VALUE?
