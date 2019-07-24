@@ -20,9 +20,9 @@
  *
  * @constructor
  * @param {!Blockly.Workspace} workspace the main workspace to represent
- * @param {!HTMLElement} parentNav the p element to display the parent
+ * @param {!HTMLElement} parentNav the element to display the parent
  * breadcrumbs within
- * @param {!HTMLElement} mainNavList the p element to display the main
+ * @param {!HTMLElement} mainNavList the element to display the main
  * linearization of workspace within
  */
 Blockly.Linearization = function(workspace, parentNav, mainNavList) {
@@ -58,6 +58,13 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   this.fontSize_ = 14;
 
   /**
+   * The key used to determine whether or not to call this.generateList_
+   * @type {Object}
+   * @private
+   */
+  this.renderKey_;
+
+  /**
    * The number of pixels wide to generate indents in the mainNavList
    * @type {number}
    * @private
@@ -72,9 +79,7 @@ Blockly.Linearization = function(workspace, parentNav, mainNavList) {
   /** @const @private */
   this.returnText_ = 'return ';
 
-  this.ordering = [];
-
-  workspace.addChangeListener(e => this.generateList_(e));
+  workspace.addChangeListener(e => this.onChange(e));
 }
 
 /**
@@ -198,10 +203,34 @@ Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
 };
 
 /**
- * The ChangeListener for workspace events. On fire, fully redraws linearization,
- * generating and replacing the mainNavList and parentNav.
+ * The ChangeListener for workspace events. On fire, creates a promise to fully
+ * redraw linearization if another request is not recieved in 100 millis
  * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
  * ChangeListener.
+ */
+Blockly.Linearization.prototype.onChange = function(e) {
+  const makePromise = () => {
+    this.renderKey_ = e;
+
+    new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (this.renderKey_ === e) {
+          this.renderKey_ = null;
+          this.generateList_(e);
+        } else if (!this.renderKey_) {
+          makePromise();
+        }
+      }, 100);
+    }).catch(console.log);
+  }
+
+  makePromise();
+}
+
+/**
+ * Fully redraws linearization, generating and replacing the mainNavList and
+ * parentNav.
+ * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
  * @private
  */
 Blockly.Linearization.prototype.generateList_ = function(e) {
