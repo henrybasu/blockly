@@ -651,8 +651,8 @@ Blockly.Linearization.prototype.makePrevConnectionItem_ = function(node) {
   var blockNode = this.blockJoiner.blockNode;
   var display = blockNode !== node && blockNode;
   var prevConn = node.prev();
-  var displayPrev = !prevConn.prev() || 
-      prevConn.prev().getType() !== Blockly.ASTNode.types.NEXT;
+  var displayPrev = prevConn && (!prevConn.prev() || 
+      prevConn.prev().getType() !== Blockly.ASTNode.types.NEXT);
   if (display && prevConn && displayPrev && 
       Blockly.Linearization.checkConnection_(prevConn, blockNode.next())) {
     // ***Requires Localization***
