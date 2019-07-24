@@ -994,14 +994,14 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
   switch (node.getType()) {
     case Blockly.ASTNode.types.FIELD:
       if (location instanceof Blockly.FieldDropdown) {
-        return this.makeDropdownItem_(location);
+        return this.makeDropdownItem_(location, node, false);
       }
       if (Blockly.FieldPitch && (location instanceof Blockly.FieldPitch)) {
-        return this.makePitchItem_(location);
+        return this.makeDropdownItem_(location, node, true);
       }
       if (location instanceof Blockly.FieldNumber
           || location instanceof Blockly.FieldTextInput) {
-        return this.makeEditableFieldItem_(location);
+        return this.makeEditableFieldItem_(location, node);
       }
       var fallthroughText = 'field but neither dropdown nor number';
       return this.makeTextItem(fallthroughText);
@@ -1010,7 +1010,7 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
         var targetInputs = location.targetConnection.getSourceBlock().inputList;
         if (targetInputs.length === 1 &&
             (targetInputs[0].fieldRow[0] instanceof Blockly.FieldNumber)) {
-          return this.makeEditableFieldItem_(targetInputs[0]);
+          return this.makeEditableFieldItem_(targetInputs[0], node);
         }
         var targetBlockNode = node.in().next();
         if (targetBlockNode.getLocation().outputConnection) {
@@ -1144,31 +1144,13 @@ Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
 }
 
 /**
-* Creates immediately clickable/interactable field items for shadow blocks
-* for some block node.
-* @param {Blockly.ASTNode} node the block to add items for
-* @param {HTMLElement} list the list to which to add items to
-* @private
-*/
-Blockly.Linearization.prototype.makeShadowBlockItems_ = function(node, list) {
-  console.log('hi');
-  var inline = node.getFirstInlineBlock();
-  if (inline) {
-    inline.sequence(Blockly.Linearization.nextInlineInput)
-      // .map(node => this.makeInputItem_(node))
-      // .filter(Boolean)
-      // .forEach(elem => sublist.appendChild(elem));
-  }
-}
-
-/**
  * Creates and returns a textfield HTML li element linked to node's value.
  * @param {!Blockly.ASTNode} node the field or input to represent
  * @return {HTMLElement} an html list item that is edittable for number
  * and text fields.
  * @private
  */
-Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item) {
+Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item, node) {
   var listElem;
   try {
     var field = item.fieldRow[0];
@@ -1176,7 +1158,7 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item) {
     var field = item;
   }
   if (field instanceof Blockly.FieldDropdown) {
-    return this.makeDropdownItem_(field)
+    return this.makeDropdownItem_(field, node)
   }
   var fieldName = field.name;
   listElem = this.createElement('input');
@@ -1189,15 +1171,18 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item) {
     listElem.setAttribute('type', 'number');
   }
 
+  listElem.setAttribute('value', field.getText());
+
   listElem.addEventListener('blur', (event) => {
+    Blockly.Events.disable();
     var block = this.workspace.getBlockById(listElem.id.slice(2));
-    block.setFieldValue(listElem.value, fieldName);
+    field.setValue(listElem.value);
+    Blockly.Events.enable();
+    this.generateParentNav_(node);
   });
   listElem.addEventListener('keyup', (event) => {
-    event.preventDefault();
     if (event.keyCode === 13) {
-      var block = this.workspace.getBlockById(listElem.id.slice(2));
-      block.setFieldValue(listElem.value, fieldName);
+      listElem.blur();
     }
   });
   return listElem;
@@ -1209,62 +1194,35 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item) {
  * @return {?HTMLElement} a clickable representation of the field that toggles
  * options through the dropdown option list. If there are no options, null.
  */
-Blockly.Linearization.prototype.makeDropdownItem_ = function(field) {
-  var options = field.getOptions();
+Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node, music) {
+  if (music) {
+    var options = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
+  } else {
+    var options = field.getOptions();
+  }
   if (!options.length) {
     return null;
   }
 
-  const makeOptObj = (option) => ({label: option[0], value: option[1]});
-  const makeEntryObj = (i) => ({i: i, option: makeOptObj(options[i])});
-
-  var entry = makeEntryObj(0);
-  for (var i = 0, option; option = options[i]; i++) {
+  var elem = this.createElement('select');
+  elem.setAttribute('id', 'dropdown');
+  elem.style.width = this.mainNavList.offsetWidth + 'px';
+  for (var option of options) {
+    var item = this.createElement('option');
+    item.setAttribute('value', option[1]);
+    item.textContent = option[0];
     if (option[1] === field.getValue()) {
-      entry = makeEntryObj(i);
-      break;
+      item.setAttribute('selected', 'selected');
     }
+    elem.appendChild(item);
   }
 
-  if (entry.option.label.alt) {
-    var labelText = 'Field: ' + entry.option.label.alt
-  } else {
-    var labelText = 'Field: ' + entry.option.label;
-  }
-  var elem = this.makeTextItem(labelText);
-  // ***Requires Localization***
-  elem.setAttribute('aria-label', labelText + ', click to change');
-  elem.setAttribute('index', entry.i);
-  elem.addEventListener('click', e => {
+  elem.addEventListener('change', (event) => {
     Blockly.Events.disable();
-    const oldIndex = parseInt(elem.getAttribute('index'));
-    var offset = 1;
-    while (offset < field.getOptions().length) {
-      var newIndex = (oldIndex + offset) % field.getOptions().length;
-      var option = makeOptObj(field.getOptions()[newIndex]);
-      if (option.label.alt) {
-        var newLabelText = 'Field: ' + option.label.alt;
-      } else {
-        var newLabelText = 'Field: ' + option.label;
-      }
-      var textNode = document.createTextNode(newLabelText);
-      // ***Requires Localization***
-      elem.setAttribute('aria-label', newLabelText + ', click to change');
-      elem.setAttribute('index', newIndex);
-
-      try {
-        field.setValue(option.value);
-        elem.replaceChild(textNode, elem.firstChild);
-        break;
-      } catch (e) { // not a variable, so value can't be set
-        console.warn('not a valid variable', option);
-      } finally {
-        offset++;
-      }
-    }
-    this.generateParentNav_(this.selected);
+    field.setValue(elem.options[elem.selectedIndex].value);
     Blockly.Events.enable();
-  });
+    this.generateParentNav_(node);
+  })
   return elem;
 }
 
