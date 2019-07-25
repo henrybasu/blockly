@@ -275,8 +275,8 @@ Blockly.Linearization.prototype.generateList_ = function(e) {
  * @private
  */
 Blockly.Linearization.prototype.applyNavStyle_ = function() {
-  var children = [...mainNavList.getElementsByTagName('*')]
-      .filter(child => child.tagName !== 'SPAN');
+    var children = [...this.mainNavList.getElementsByTagName('*')]
+        .filter(child => child.tagName !== 'SPAN');
 
   children.forEach(child => child.style['list-style-type'] = 'none');
 
@@ -1156,7 +1156,7 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item, node) {
     var field = item;
   }
   if (field instanceof Blockly.FieldDropdown) {
-    return this.makeDropdownItem_(field, node)
+    return this.makeDropdownItem_(field, node, false);
   }
   var fieldName = field.name;
   listElem = this.createElement('input');
@@ -1197,6 +1197,7 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node, music)
     var options = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
   } else {
     var options = field.getOptions();
+    console.log(options);
   }
   if (!options.length) {
     return null;
@@ -1204,11 +1205,19 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node, music)
 
   var elem = this.createElement('select');
   elem.setAttribute('id', 'dropdown');
-  elem.style.width = this.mainNavList.offsetWidth + 'px';
+  if (document.getElementById('staveBox')) {
+    elem.style.width = (document.getElementById('staveBox').offsetWidth - 40) + 'px';
+  } else {
+    elem.style.width = this.mainNavList.offsetWidth + 'px';
+  }
   for (var option of options) {
     var item = this.createElement('option');
     item.setAttribute('value', option[1]);
-    item.textContent = option[0];
+    if (option[0].alt) {
+      item.textContent = option[0].alt;
+    } else {
+      item.textContent = option[0];
+    }
     if (option[1] === field.getValue()) {
       item.setAttribute('selected', 'selected');
     }
