@@ -346,13 +346,8 @@ Blockly.Linearization.prototype.startEventCooldown_ = function() {
  * @private
  */
 Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
-  var pNav = this.createElement('ol');
-  if (this.enforceDefaultCss) {
-    pNav.style['display'] = 'inline';
-    pNav.style['list-style'] = 'none';
-    pNav.style['margin'] = '0px';
-    pNav.style['padding'] = '0px';
-  }
+  var pNav = this.parentNav;
+  pNav.innerHTML = '';
   pNav.appendChild(this.makeParentItem_());
 
   if (rootNode) {
@@ -414,8 +409,6 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
       pNav.appendChild(duplicateItem);
     }
   }
-
-  this.parentNav.innerHTML = pNav.outerHTML;
 }
 
 /**
@@ -552,6 +545,10 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
         body.append(this.makeReturnItem_(node));
       }
 
+      descendantItems.push(body);
+    } else if (this.blockJoiner.blockNode) {
+      var body = this.createElement('ul');
+      body.append(...this.makeInnerInputList_(node.in()));
       descendantItems.push(body);
     }
   }
@@ -763,8 +760,9 @@ Blockly.Linearization.prototype.makeInnerInputList_ = function(inNode) {
       return inNodeSeq.length <= 1? '': ' ' + tracker.insertVal++;
     }
   }
+
   return inNodeSeq
-      .filter(node => Blockly.Linearization.checkConnection_(node, blockNode))
+      .filter(node => Blockly.Linearization.checkConnection_(node, blockNode.prev()))
       .map(n => this.makeConnectionItem_(
             n,
             // ***Requires Localization***
