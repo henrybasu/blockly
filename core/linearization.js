@@ -737,7 +737,7 @@ Blockly.Linearization.prototype.makeInnerInputList_ = function(rootNode) {
   const hasInputParent = (n) => parentInputType(n) === Blockly.INPUT_VALUE;
 
   var inlines = inNodeSeq.filter(hasInputParent).length;
-  var withins = inNodeSeq.length - inlines;
+  var withins = inNodeSeq.filter(n => n.getLocation().type === 3).length;
 
   var tracker = {
     tackVal: 1,
@@ -1014,17 +1014,17 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.makeIfList_ = function(node) {
-  const branches = node.branch? [node.branch]:
-      Blockly.Linearization.getIfBranches(node);
+  const allBranches = Blockly.Linearization.getIfBranches(node);
+  const nodeBranches = node.branch? [node.branch]: allBranches;
   var list = [];
 
   if (node.branch && node.branch.condNode) {
     list.push(this.makeBlockItem_(node.branch.condNode));
-  } else if (branches.length === 1 && branches[0].condNode) {
-    list.push(this.makeBlockItem_(branches[0].condNode));
+  } else if (nodeBranches.length === 1 && nodeBranches[0].condNode) {
+    list.push(this.makeBlockItem_(nodeBranches[0].condNode));
   }
 
-  for (var branch of branches) {
+  for (var branch of nodeBranches) {
     list.push(this.makeIfBracketItem_(node, branch));
 
     var bracketItemList = this.createElement('ul');
@@ -1048,7 +1048,7 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
     bracketItemList.appendChild(this.makeTextItem(this.blankText_));
   }
 
-  if (node.branch) {
+  if (node.branch && allBranches.length > 1) {
     var viewAllItem = this.makeBlockItem_(node, null);
     // ***Requires Localization***
     viewAllItem.innerHTML = 'View all branches...';
@@ -1180,7 +1180,7 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item, node) {
  */
 Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node, music) {
   if (music) {
-    var options = [['C3','C3'], ['D3', 'D3'], ['E3', 'E3'], ['F3', 'F3'], ['G3', 'G3'], 
+    var options = [['C3','C3'], ['D3', 'D3'], ['E3', 'E3'], ['F3', 'F3'], ['G3', 'G3'],
     ['A3', 'A3'], ['B3', 'B3'], ['C4','C4'], ['D4','D4'], ['E4','E4'], ['F4','F4'], ['G4','G4'], ['A4','A4']];
   } else {
     var options = field.getOptions();
