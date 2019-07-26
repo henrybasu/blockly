@@ -779,7 +779,9 @@ Blockly.ASTNode.prototype.nextBlock = function() {
 };
 
 /**
- * Find the first node previous to this block, or out if there is none previous
+ * Find the first block's node previous to this block, or out if there is none.
+ * Using as a collect advanceFn generates a list of all blocks which, when
+ * moved, will move this.getLocation() as well.
  * @return {Blockly.ASTNode} An ast node that wraps the first block previous to
  * or surrounding this block in the AST. Null if there are no such blocks.
  * @author macaccesslab@gmail.com (Logan Caraco in Macalester Lab)

@@ -217,19 +217,6 @@ Blockly.Linearization.BlockJoiner.prototype.disconnectBlock = function() {
 };
 
 /**
- * Checks if the block in this.blockNode is equal to the block in node
- * @param {!Blockly.ASTNode} node the node to compare to
- * @return {Boolean} true if they contain the same block and are not null, false
- * otherwise
- //isJoiningBlock?
- */
-Blockly.Linearization.BlockJoiner.prototype.blockIs = function(node) {
-  // TODO: investigate removing the undefined comparison
-  return this.blockNode && this.blockNode.getLocation().id != undefined
-    && this.blockNode.getLocation().id === node.getLocation().id;
-};
-
-/**
  * The ChangeListener for workspace events. On fire, creates a promise to fully
  * redraw linearization if another request is not recieved in 100 millis.
  * @param {?Blockly.Events.Abstract} e the workspace event that triggers this
@@ -248,6 +235,7 @@ Blockly.Linearization.prototype.onChange = function(e) {
       if (this.pendingRenderEvent_ === e) {
         this.pendingRenderEvent_ = null;
         this.generateList_(e);
+        resolve(e);
       } else {
         reject('skipped render');
       }
@@ -269,16 +257,20 @@ Blockly.Linearization.prototype.generateList_ = function(e) {
   }
 
   if (e) {
+    // change this.selected with e
     this.alterSelectedWithEvent_(e);
   }
 
+  // make and replace the parentNav
   this.generateParentNav_(this.selected);
 
+  // make proper view...
   var navListDiv = this.mainNavList;
   var newDiv = this.selected?
       this.makeBlockSpecificView_(this.selected):
       this.makeWorkspaceView_();
 
+  // ...and replace mainNavList
   newDiv.setAttribute('id', 'mainNavList');
   navListDiv.parentNode.replaceChild(newDiv, navListDiv);
   this.mainNavList = newDiv;
@@ -439,19 +431,22 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
 Blockly.Linearization.prototype.makeWorkspaceView_ = function() {
   var workspace = this.workspace;
   var wsNode = Blockly.ASTNode.createWorkspaceNode(workspace);
-  var wsList = this.createElement('ul');
+  var list = this.createElement('ul');
 
   var firstStack = wsNode.in();
   var stacks = firstStack.collect(n => n.next());
 
+  // this.makeStackItem_ requires that this.marker be intialized
   this.marker = 'A';
-  wsList.append(...stacks.map(stack => this.makeStackItem_(stack)));
+  stacks.map(stack => this.makeStackItem_(stack)).forEach(n => list.append(n));
 
-  return wsList;
+  return list;
 };
 
 /**
- * Generates the html li that contains listings for all items in the stack
+ * Generates the html li that contains listings for all items in the stack,
+ * requires that this.marker be set to the stack marker for this stack, and will
+ * automatically advance that marker using Blockly.Linearization;
  * @param {!Blockly.ASTNode} stackNode the stack to represent
  * @return {HTMLElement} a list element describing the complete stack as
  * a color-coded, linked sublist
@@ -515,12 +510,13 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
   }
 
   const alterAriaLabel = (item) => {
-    // ***Requires Localization***
-    if (block.getSurroundParent()) {
-      item.firstChild.setAttribute('aria-label', item.firstChild.textContent
-          + ', inside ' + Blockly.Linearization.getNestingBlockName(block.getSurroundParent()));
+    var parent = block.getSurroundParent();
+    if (parent) {
+      var nestingName = Blockly.Linearization.getNestingBlockName(parent);
+      // ***Requires Localization***
+      var text = item.firstChild.textContent + ', inside ' + nestingName;
+      item.firstChild.setAttribute('aria-label', text);
     }
-    // ***Requires Localization***
     item.firstChild.setAttribute('role', 'button');
   }
 
@@ -567,7 +563,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
       }
 
       descendantItems.push(body);
-    } else if (this.blockJoiner.blockNode) {
+    } else if (this.blockJoiner.blockNode && node.in()) {
       var body = this.createElement('ul');
       body.append(...this.makeInnerInputList_(node));
       descendantItems.push(body);
@@ -1110,18 +1106,19 @@ Blockly.Linearization.prototype.makeIfBracketItem_ = function(node, branch) {
 Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
   var block = node.getLocation();
   var text = block.makeAriaLabel();
-  if (this.blockJoiner.blockIs(node)) {
+  var blockNode = this.blockJoiner.blockNode;
+  if (blockNode && blockNode.getLocation().id === node.getLocation().id) {
     // ***Requires Localization***
     text += ' (moving me...)';
   }
-  var listElem = this.makeTextItem(text);
-  listElem.firstChild.setAttribute('role', 'button');
-  listElem.setAttribute('id', "li" + block.id);
-  listElem.setAttribute('blockId', block.id);
-  listElem.addEventListener('click', e => this.listItemOnclick_(node, branch));
+  var item = this.makeTextItem(text);
+  item.firstChild.setAttribute('role', 'button');
+  item.setAttribute('id', "li" + block.id);
+  item.setAttribute('blockId', block.id);
+  item.addEventListener('click', e => this.listItemOnclick_(node, branch));
   var colorString = 'hsl(' + node.getLocation().getHue() + ', 40%, 40%)';
-  listElem.style.color = colorString;
-  return listElem;
+  item.style.color = colorString;
+  return item;
 };
 
 /**
@@ -1339,31 +1336,6 @@ Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
 };
 
 /**
- * Creates and returns an HTML li element with a text node reading text.
- * @param {!String} text the text on the list item
- * @return {HTMLElement} an html list item with text node text
- */
-Blockly.Linearization.prototype.makeTextItem = function(text) {
-  var listElem = this.createElement('li');
-  var spanElem = this.createElement('span');
-  spanElem.appendChild(document.createTextNode(text));
-  // listElem.appendChild(document.createTextNode(text));
-  listElem.appendChild(spanElem);
-  return listElem;
-};
-
-/**
- * Creates and returns an HTML element with tag type, and inherited font-size
- * property
- * @param {!String} type the type of html element
- */
-Blockly.Linearization.prototype.createElement = function(type) {
-  var elem = document.createElement(type);
-  elem.style['font-size'] = this.fontSize_ + 'pt';
-  return elem;
-};
-
-/**
  * Pushes the node to this.blockJoiner, and navigates to the workspace level
  * linearization
  * @param {!Blockly.ASTNode} node the node to be pushed
@@ -1396,6 +1368,30 @@ Blockly.Linearization.prototype.listItemOnclick_ = function(node, branch) {
     this.selected.branch = branch;
   }
   this.generateList_();
+};
+
+/**
+ * Creates and returns an HTML li element with a text node reading text.
+ * @param {tring}s$3 text the text on the list item
+ * @return {HTMLElement} an html list item with text node text
+ */
+Blockly.Linearization.prototype.makeTextItem = function(text) {
+  var listElem = this.createElement('li');
+  var spanElem = this.createElement('span');
+  spanElem.appendChild(document.createTextNode(text));
+  listElem.appendChild(spanElem);
+  return listElem;
+};
+
+/**
+ * Creates and returns an HTML element with tag type, and inherited font-size
+ * property
+ * @param {!string} type the type of html element
+ */
+Blockly.Linearization.prototype.createElement = function(type) {
+  var elem = document.createElement(type);
+  elem.style['font-size'] = this.fontSize_ + 'pt';
+  return elem;
 };
 
 /**
@@ -1524,7 +1520,7 @@ Blockly.Linearization.getNestingBlockName = function(block) {
  * Creates and returns the aria label for node if
  * node.getLocation().makeAriaLabel is not null, 'workspace' if otherwise.
  * @param {?Blockly.ASTNode} node the node to get aria-label from
- * @return {String} the string generated by node.getLocation().makeAriaLabel()
+ * @return {string} the string generated by node.getLocation().makeAriaLabel()
  */
 Blockly.Linearization.makeNodeLabel = function(node) {
   // ***Requires Localization***
@@ -1552,8 +1548,8 @@ Blockly.Linearization.nextInlineInput = function(node) {
 /**
  * Creates and returns the next label in lexicographic order, adding a letter in
  * the event of overflow.
- * @param {!String} marker the last node created
- * @return {String} the next label after marker in lexicographic order
+ * @param {!string} marker the last node created
+ * @return {string} the next label after marker in lexicographic order
  */
 Blockly.Linearization.nextStackMarker = function(marker) {
   var lastIndex = marker.length - 1;
