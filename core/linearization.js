@@ -971,10 +971,10 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
   switch (node.getType()) {
     case Blockly.ASTNode.types.FIELD:
       if (location instanceof Blockly.FieldDropdown) {
-        return this.makeDropdownItem_(location, node);
+        return this.makeDropdownItem_(node);
       }
       if (Blockly.FieldPitch && (location instanceof Blockly.FieldPitch)) {
-        return this.makeDropdownItem_(location, node, true);
+        return this.makeDropdownItem_(node, true);
       }
       if (location instanceof Blockly.FieldNumber
           || location instanceof Blockly.FieldTextInput) {
@@ -1133,14 +1133,12 @@ Blockly.Linearization.prototype.makeBlockItem_ = function(node, branch) {
  */
 Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item, node) {
   var listElem;
-  try {
-    var field = item.fieldRow[0];
-  } catch {
-    var field = item;
-  }
+  // this function acceps both inputs and fields, so we determine which here
+  // an input will have .fieldRow[0], a field won't
+  var field = item.fieldRow ? item.fieldRow[0] : item;
 
   if (field instanceof Blockly.FieldDropdown) {
-    return this.makeDropdownItem_(field, node, false);
+    return this.makeDropdownItem_(node, false);
   }
 
   var fieldName = field.name;
@@ -1174,46 +1172,41 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item, node) {
 
 /**
  * Returns the html list element representing field, null if an invalid field
- * @param {!Blockly.FieldDropdown} field the field to represent
+ * @param {!Blockly.ASTNode} node the node which points to field
+ * @param {Boolean} pitch whether or not the field is a Blockly.FieldPitch
  * @return {?HTMLElement} a clickable representation of the field that toggles
  * options through the dropdown option list. If there are no options, null.
  */
-Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node, music) {
-  if (music) {
-    var options = [['C3','C3'], ['D3', 'D3'], ['E3', 'E3'], ['F3', 'F3'], ['G3', 'G3'], 
-    ['A3', 'A3'], ['B3', 'B3'], ['C4','C4'], ['D4','D4'], ['E4','E4'], ['F4','F4'], ['G4','G4'], ['A4','A4']];
+Blockly.Linearization.prototype.makeDropdownItem_ = function(node, pitch) {
+  var elem = this.createElement('select');
+  var field = node.getLocation();
+
+  if (pitch) {
+    var notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
+    var options = [];
+    for (var i=0, note; note = notes[i]; i++) {
+      var option = [note, i];
+      options.push(option);
+    }
+    elem.style.width = (document.getElementById('staveBox').offsetWidth - 40) + 'px';
   } else {
     var options = field.getOptions();
+    elem.style.width = this.mainNavList.offsetWidth + 'px';
   }
+
   if (!options.length) {
     return null;
   }
 
-  var elem = this.createElement('select');
-  elem.setAttribute('id', 'dropdown');
-  if (document.getElementById('staveBox')) {
-    elem.style.width = (document.getElementById('staveBox').offsetWidth - 40) + 'px';
-  } else {
-    elem.style.width = this.mainNavList.offsetWidth + 'px';
-  }
   for (var i=0, option; option = options[i]; i++) {
     var item = this.createElement('option');
-    if (Blockly.FieldPitch && field instanceof Blockly.FieldPitch) {
-      item.setAttribute('value', i);
-    } else {
-      item.setAttribute('value', option[1]);
-    }
-    if (option[0].alt) {
-      item.textContent = option[0].alt;
-    } else {
-      item.textContent = option[0];
-    }
-    if (option[1] === field.getValue()) {
+    item.setAttribute('value', option[1]);
+
+    item.textContent = option[0].alt || option[0];
+    if (option[1] === field.getValue() || option[1] === field.getText()) {
       item.setAttribute('selected', 'selected');
     }
-    if (option[1] === field.getText()) {
-      item.setAttribute('selected', 'selected');
-    }
+
     elem.appendChild(item);
   }
 
