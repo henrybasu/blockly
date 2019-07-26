@@ -737,7 +737,7 @@ Blockly.Linearization.prototype.makeInnerInputList_ = function(rootNode) {
   const hasInputParent = (n) => parentInputType(n) === Blockly.INPUT_VALUE;
 
   var inlines = inNodeSeq.filter(hasInputParent).length;
-  var withins = inNodeSeq.length - inlines;
+  var withins = inNodeSeq.filter(n => n.getLocation().type === 3).length;
 
   var tracker = {
     tackVal: 1,
@@ -1014,17 +1014,17 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
  * @private
  */
 Blockly.Linearization.prototype.makeIfList_ = function(node) {
-  const branches = node.branch? [node.branch]:
-      Blockly.Linearization.getIfBranches(node);
+  const allBranches = Blockly.Linearization.getIfBranches(node);
+  const nodeBranches = node.branch? [node.branch]: allBranches;
   var list = [];
 
   if (node.branch && node.branch.condNode) {
     list.push(this.makeBlockItem_(node.branch.condNode));
-  } else if (branches.length === 1 && branches[0].condNode) {
-    list.push(this.makeBlockItem_(branches[0].condNode));
+  } else if (nodeBranches.length === 1 && nodeBranches[0].condNode) {
+    list.push(this.makeBlockItem_(nodeBranches[0].condNode));
   }
 
-  for (var branch of branches) {
+  for (var branch of nodeBranches) {
     list.push(this.makeIfBracketItem_(node, branch));
 
     var bracketItemList = this.createElement('ul');
@@ -1048,7 +1048,7 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
     bracketItemList.appendChild(this.makeTextItem(this.blankText_));
   }
 
-  if (node.branch) {
+  if (node.branch && allBranches.length > 1) {
     var viewAllItem = this.makeBlockItem_(node, null);
     // ***Requires Localization***
     viewAllItem.innerHTML = 'View all branches...';
