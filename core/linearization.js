@@ -497,7 +497,7 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
   if (node.getType() !== Blockly.ASTNode.types.BLOCK
     || (block.outputConnection && block.getParent())
     || block.getRootBlock() !== rootBlock) {
-    return endLabel? [endLabel]: [];
+    return endLabel ? [endLabel] : [];
   }
 
   // recursively generates a ul containing all html representations of children
@@ -540,7 +540,8 @@ Blockly.Linearization.prototype.makeBlockList_ = function(node, rootBlock) {
       } else if (this.blockJoiner.blockNode) {
         var bodyNode =
             Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
-        if (Blockly.Linearization.checkConnection(bodyNode, this.blockJoiner.blockNode)) {
+        if (Blockly.Linearization.checkConnection(bodyNode,
+            this.blockJoiner.blockNode)) {
           var text = 'Insert within ' + branch.text;
           body.appendChild(this.makeConnectionItem_(bodyNode, text));
         }
@@ -713,7 +714,7 @@ Blockly.Linearization.prototype.makeNextConnectionItem_ = function(node) {
     var last = !nextConn.next() ||
         nextConn.next().getType() !== Blockly.ASTNode.types.PREVIOUS;
         // ***Requires Localization***
-    var text = last? 'Insert below': 'Insert between';
+    var text = last ? 'Insert below' : 'Insert between';
     return this.makeConnectionItem_(node.next(), text);
   }
   return null;
@@ -743,10 +744,10 @@ Blockly.Linearization.prototype.makeInnerInputList_ = function(rootNode) {
     tackVal: 1,
     insertVal: 1,
     tackText: function() {
-      return inlines <= 1? '': ' ' + tracker.tackVal++;
+      return inlines <= 1 ? '' : ' ' + tracker.tackVal++;
     },
     insertText: function() {
-      return withins <= 1? '': ' ' + tracker.insertVal++;
+      return withins <= 1 ? '' : ' ' + tracker.insertVal++;
     }
   }
 
@@ -785,13 +786,14 @@ Blockly.Linearization.prototype.makeMutatorList_ = function(node) {
   const incrAttr = (attrStr) => alterAttr(attrStr, n => n + 1);
   const decrAttr = (attrStr) => alterAttr(attrStr, n => n - 1);
 
-  if (block.elseifCount_ != undefined) {
+  if (block.elseifCount_ !== undefined) {
     // ***Requires Localization***
     list.push(this.makeMutatorItem_(node, 'Add elseif', incrAttr('elseif')));
 
     if (block.elseifCount_ > 0) {
       // ***Requires Localization***
-      list.push(this.makeMutatorItem_(node, 'Remove elseif', decrAttr('elseif')));
+      list.push(this.makeMutatorItem_(node, 'Remove elseif',
+          decrAttr('elseif')));
     }
   }
 
@@ -948,7 +950,7 @@ Blockly.Linearization.prototype.makeParentItem_ = function(node) {
   var labelText = Blockly.Linearization.makeNodeLabel(node);
   if (!node && !this.selected) {
     // ***Requires Localization***
-    labelText += this.blockJoiner.blockNode? ' (move mode)': ' (summary)';
+    labelText += this.blockJoiner.blockNode ? ' (move mode)' : ' (summary)';
   }
   item.appendChild(document.createTextNode(labelText + ' > '));
   if (node) {
@@ -1015,7 +1017,7 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
  */
 Blockly.Linearization.prototype.makeIfList_ = function(node) {
   const allBranches = Blockly.Linearization.getIfBranches(node);
-  const nodeBranches = node.branch? [node.branch]: allBranches;
+  const nodeBranches = node.branch ? [node.branch] : allBranches;
   var list = [];
 
   if (node.branch && node.branch.condNode) {
@@ -1079,11 +1081,12 @@ Blockly.Linearization.prototype.makeIfBracketItem_ = function(node, branch) {
 
   var bracketItem;
   try {
-    var blockNode = this.blockJoiner.blockNode;
-    var condConnectionNode = Blockly.ASTNode.createConnectionNode(branch.condConnection);
-    if (Blockly.Linearization.checkConnection(condConnectionNode, blockNode.prev())) {
+    var condConnNode =
+        Blockly.ASTNode.createConnectionNode(branch.condConnection);
+    if (Blockly.Linearization.checkConnection(condConnNode,
+          this.blockJoiner.blockNode.prev())) {
       // ***Requires Localization***
-      bracketItem = this.makeConnectionItem_(condConnectionNode,
+      bracketItem = this.makeConnectionItem_(condConnNode,
           text + ' (click to fill)');
     } else {
       bracketItem = this.makeBlockItem_(node, branch);
@@ -1182,13 +1185,15 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(node, pitch) {
   var field = node.getLocation();
 
   if (pitch) {
-    var notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
+    var notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4',
+        'F4', 'G4', 'A4'];
     var options = [];
     for (var i=0, note; note = notes[i]; i++) {
       var option = [note, i];
       options.push(option);
     }
-    elem.style.width = (document.getElementById('staveBox').offsetWidth - 40) + 'px';
+    var widthPixels = document.getElementById('staveBox').offsetWidth - 40;
+    elem.style.width = widthPixels + 'px';
   } else {
     var options = field.getOptions();
     elem.style.width = this.mainNavList.offsetWidth + 'px';
@@ -1220,13 +1225,15 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(node, pitch) {
 };
 
 /**
- * Returns the html list element representing the pitch field, null if an invalid field
+ * Returns the html list element representing the pitch field, null if an
+ * invalid field
  * @param {!Blockly.FieldPitch} field the field to represent
  * @return {?HTMLElement} a clickable representation of the field that toggles
  * options through the dropdown option list. If there are no options, null.
  */
 Blockly.Linearization.prototype.makePitchItem_ = function(field) {
-  var options = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
+  var options = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4',
+      'F4', 'G4', 'A4'];
 
   var text = '';
   var value = 0;
@@ -1333,7 +1340,8 @@ Blockly.Linearization.prototype.makeReturnItem_ = function(rootNode) {
  */
 Blockly.Linearization.prototype.makeMoveItem_ = function(node) {
   // ***Requires Localization***
-  var text = this.blockJoiner.blockNode? 'Move me instead': 'Move me and blocks below';
+  var text = this.blockJoiner.blockNode ? 'Move me instead' :
+      'Move me and blocks below';
   var element = this.makeTextItem(text);
   element.addEventListener('click', e => this.moveItemOnclick_(node, e));
   return element;
@@ -1474,9 +1482,9 @@ Blockly.Linearization.getIfBranches = function(ifNode) {
       branch.text = 'else';
       branch.bodyIndex = i;
     } else {
-      branch.type = i? 2: 1;
+      branch.type = i ? 2 : 1;
       // ***Requires Localization***
-      branch.text = i? 'else if': 'if';
+      branch.text = i ? 'else if' : 'if';
 
       branch.condIndex = i;
       branch.condConnection = children[i].getLocation();
@@ -1559,7 +1567,7 @@ Blockly.Linearization.nextStackMarker = function(marker) {
   var lastIndex = marker.length - 1;
   var prefix = marker.slice(0, lastIndex);
   if (marker.charCodeAt(lastIndex) === 'Z'.charCodeAt(0)) {
-    return (prefix? this.nextStackMarker(prefix): 'A') + 'A';
+    return (prefix ? this.nextStackMarker(prefix) : 'A') + 'A';
   }
   return prefix + String.fromCharCode(marker.charCodeAt(lastIndex) + 1);
 };
