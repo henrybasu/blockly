@@ -747,6 +747,7 @@ Blockly.ASTNode.prototype.ancestors = function(includeThis=false) {
  * Find the first block visually nested inside this block.
  * @return {Blockly.ASTNode} An ast node pointing to the first nested block.
  * Null if there are no nested blocks in this block.
+ * @author macaccesslab@gmail.com (Logan Caraco in Macalester Lab)
  */
 Blockly.ASTNode.prototype.inBlock = function() {
   var currentInput = this.in();
@@ -766,8 +767,8 @@ Blockly.ASTNode.prototype.inBlock = function() {
 /**
  * Finds the first block while calling next repeatedly
  * @return {Blockly.ASTNode} An ast node that wraps the first block after and on
- * the same level as this block in the ast.
- * Null if there are no blocks to the right of this block on the AST.
+ * the same level as this block in the ast. Null if there are no blocks to the
+ * right of this block on the AST.
  * @author macaccesslab@gmail.com (Logan Caraco in Macalester Lab)
  */
 Blockly.ASTNode.prototype.nextBlock = function() {
