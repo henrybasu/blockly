@@ -743,11 +743,19 @@ Blockly.Linearization.prototype.makeInnerInputList_ = function(rootNode) {
   var tracker = {
     tackVal: 1,
     insertVal: 1,
-    tackText: function() {
-      return inlines <= 1 ? '' : ' ' + tracker.tackVal++;
+    tackText: function(n) {
+      var source = n && n.getLocation() && n.getLocation().targetConnection;
+      source = source && source.getSourceBlock();
+      if (source) {
+        // ***Requires Localization***
+        return 'Replace ' + source.makeAriaLabel();
+      }
+      // ***Requires Localization***
+      return 'Tack on side' + (inlines <= 1 ? '' : ' ' + tracker.tackVal++);
     },
-    insertText: function() {
-      return withins <= 1 ? '' : ' ' + tracker.insertVal++;
+    insertText: function(n) {
+      // ***Requires Localization***
+      return 'Insert within' + (withins <= 1 ? '' : ' ' + tracker.insertVal++);
     }
   }
 
@@ -756,10 +764,8 @@ Blockly.Linearization.prototype.makeInnerInputList_ = function(rootNode) {
       .filter(n => Blockly.Linearization.checkConnection(n, blockNode.prev()))
       .map(n => this.makeConnectionItem_(n,
             hasInputParent(n)?
-                // ***Requires Localization***
-                'Tack on side' + tracker.tackText():
-                // ***Requires Localization***
-                'Insert within' + tracker.insertText())
+                tracker.tackText(n):
+                tracker.insertText(n))
           );
 };
 
@@ -1039,11 +1045,16 @@ Blockly.Linearization.prototype.makeIfList_ = function(node) {
       continue;
     }
 
-    if (this.blockJoiner.blockNode) {
-      var body = Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
-      var text = 'Insert within ' + branch.text;
-      var listItem = this.makeConnectionItem_(body, text);
-      bracketItemList.appendChild(listItem);
+    var blockNode = this.blockJoiner.blockNode;
+    if (blockNode) {
+      var condConnNode =
+        Blockly.ASTNode.createConnectionNode(branch.bodyConnection);
+      if (Blockly.Linearization.checkConnection(condConnNode,
+            blockNode.prev())) {
+        var text = 'Insert within ' + branch.text;
+        var listItem = this.makeConnectionItem_(body, text);
+        bracketItemList.appendChild(listItem);
+      }
       continue;
     }
 
@@ -1086,8 +1097,9 @@ Blockly.Linearization.prototype.makeIfBracketItem_ = function(node, branch) {
     if (Blockly.Linearization.checkConnection(condConnNode,
           this.blockJoiner.blockNode.prev())) {
       // ***Requires Localization***
-      bracketItem = this.makeConnectionItem_(condConnNode,
-          text + ' (click to fill)');
+      var extraText = condConnNode.getLocation().targetConnection ?
+          ' (replace)' : ' (click to fill)';
+      bracketItem = this.makeConnectionItem_(condConnNode, text + extraText);
     } else {
       bracketItem = this.makeBlockItem_(node, branch);
       bracketItem.firstChild.textContent = text;
