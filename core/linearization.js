@@ -989,7 +989,6 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
         return this.makeEditableFieldItem_(location, node);
       }
       if (location instanceof Blockly.FieldLabel) {
-        console.log(location.getText());
         return this.makeTextItem_(location.getText());
       }
       var fallthroughText = 'field but neither dropdown nor number';
