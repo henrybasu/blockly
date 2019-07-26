@@ -1001,13 +1001,16 @@ Blockly.Linearization.prototype.makeInputItem_ = function(node) {
           || location instanceof Blockly.FieldTextInput) {
         return this.makeEditableFieldItem_(location, node);
       }
+      if (location instanceof Blockly.FieldLabel) {
+        console.log(location.getText());
+        return this.makeTextItem_(location.getText());
+      }
       var fallthroughText = 'field but neither dropdown nor number';
       return this.makeTextItem(fallthroughText);
     case Blockly.ASTNode.types.INPUT:
       if (location.targetConnection) {
         var targetInputs = location.targetConnection.getSourceBlock().inputList;
-        if (targetInputs.length === 1 &&
-            (targetInputs[0].fieldRow[0] instanceof Blockly.FieldNumber)) {
+        if ((targetInputs[0].fieldRow[0] instanceof Blockly.FieldNumber)) {
           return this.makeEditableFieldItem_(targetInputs[0], node);
         }
         var targetBlockNode = node.in().next();
@@ -1194,7 +1197,8 @@ Blockly.Linearization.prototype.makeEditableFieldItem_ = function(item, node) {
  */
 Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node, music) {
   if (music) {
-    var options = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
+    var options = [['C3','C3'], ['D3', 'D3'], ['E3', 'E3'], ['F3', 'F3'], ['G3', 'G3'], 
+    ['A3', 'A3'], ['B3', 'B3'], ['C4','C4'], ['D4','D4'], ['E4','E4'], ['F4','F4'], ['G4','G4'], ['A4','A4']];
   } else {
     var options = field.getOptions();
     console.log(options);
@@ -1210,15 +1214,22 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(field, node, music)
   } else {
     elem.style.width = this.mainNavList.offsetWidth + 'px';
   }
-  for (var option of options) {
+  for (var i=0, option; option = options[i]; i++) {
     var item = this.createElement('option');
-    item.setAttribute('value', option[1]);
+    if (Blockly.FieldPitch && field instanceof Blockly.FieldPitch) {
+      item.setAttribute('value', i);
+    } else {
+      item.setAttribute('value', option[1]);
+    }
     if (option[0].alt) {
       item.textContent = option[0].alt;
     } else {
       item.textContent = option[0];
     }
     if (option[1] === field.getValue()) {
+      item.setAttribute('selected', 'selected');
+    }
+    if (option[1] === field.getText()) {
       item.setAttribute('selected', 'selected');
     }
     elem.appendChild(item);
