@@ -1182,7 +1182,8 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(node, pitch) {
   var field = node.getLocation();
 
   if (pitch) {
-    var notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
+    var notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 
+      'F4', 'G4', 'A4'];
     var options = [];
     for (var i=0, note; note = notes[i]; i++) {
       var option = [note, i];
@@ -1205,6 +1206,7 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(node, pitch) {
     item.textContent = option[0].alt || option[0];
     if (option[1] === field.getValue() || option[1] === field.getText()) {
       item.setAttribute('selected', 'selected');
+      var oldIndex = i;
     }
 
     elem.appendChild(item);
@@ -1212,62 +1214,16 @@ Blockly.Linearization.prototype.makeDropdownItem_ = function(node, pitch) {
 
   elem.addEventListener('change', (event) => {
     Blockly.Events.disable();
-    field.setValue(elem.options[elem.selectedIndex].value);
+    var newVal = elem.options[elem.selectedIndex].value;
+    try {
+      field.setValue(newVal);
+    } catch (e) { // not a variable, so value can't be set
+      console.warn('not a valid variable', option);
+      elem.selectedIndex = oldIndex;
+    }
+    oldIndex = elem.selectedIndex;
     Blockly.Events.enable();
     this.generateParentNav_(node);
-  })
-  return elem;
-};
-
-/**
- * Returns the html list element representing the pitch field, null if an invalid field
- * @param {!Blockly.FieldPitch} field the field to represent
- * @return {?HTMLElement} a clickable representation of the field that toggles
- * options through the dropdown option list. If there are no options, null.
- */
-Blockly.Linearization.prototype.makePitchItem_ = function(field) {
-  var options = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4'];
-
-  var text = '';
-  var value = 0;
-  for (var i = 0, option; option = options[i]; i++) {
-    if (option === field.getText()) {
-      text = option;
-      value = i;
-      break;
-    }
-  }
-
-  var labelText = 'Field: ' + text;
-  var elem = this.makeTextItem(labelText);
-  // ***Requires Localization***
-  elem.setAttribute('aria-label', labelText + ', click to change');
-  elem.setAttribute('index', value);
-  elem.addEventListener('click', e => {
-    Blockly.Events.disable();
-    const oldIndex = parseInt(elem.getAttribute('index'));
-    var offset = 1;
-    while (offset < options.length) {
-      var newIndex = (oldIndex + offset) % options.length;
-      var text = options[newIndex];
-      var newLabelText = 'Field: ' + text;
-      var textNode = document.createTextNode(newLabelText);
-      // ***Requires Localization***
-      elem.setAttribute('aria-label', newLabelText + ', click to change');
-      elem.setAttribute('index', newIndex);
-
-      try {
-        field.setValue(newIndex);
-        elem.replaceChild(textNode, elem.firstChild);
-        break;
-      } catch (e) { // not a variable, so value can't be set
-        console.warn('not a valid variable', option);
-      } finally {
-        offset++;
-      }
-    }
-    this.generateParentNav_(this.selected);
-    Blockly.Events.enable();
   });
   return elem;
 };
