@@ -391,15 +391,16 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
     pNav.appendChild(this.createElement('br'));
     var deleteItem = this.createElement('b');
     // ***Requires Localization***
-    var text = 'Delete me';
-    deleteItem.appendChild(document.createTextNode(text));
+    deleteItem.appendChild(document.createTextNode('Delete me'));
     deleteItem.addEventListener('click', e => {
       this.blockJoiner.blockNode = null;
       blockNode.getLocation().dispose(true);
     })
 
+    var duplicateItem = this.makeDuplicateItem_(this.blockJoiner.blockNode);
+
     // ...make into new stack item...
-    if (blockNode.prev()) {
+    if (blockNode.prev() && blockNode.prev().prev()) {
       // if this has the ability to be mid-stack (unlike hat blocks)
       pNav.appendChild(deleteItem);
       pNav.appendChild(this.createElement('br'));
@@ -410,12 +411,13 @@ Blockly.Linearization.prototype.generateParentNav_ = function(rootNode) {
         this.blockJoiner.disconnectBlock();
       });
       pNav.appendChild(newStackItem);
+      if (duplicateItem) {
+        pNav.appendChild(this.createElement('br'));
+      }
     }
 
     // ...duplicate block item
-    var duplicateItem = this.makeDuplicateItem_(this.blockJoiner.blockNode);
     if (duplicateItem) {
-      pNav.appendChild(this.createElement('br'));
       pNav.appendChild(duplicateItem);
     }
   }
