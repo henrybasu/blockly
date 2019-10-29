@@ -181,17 +181,17 @@ Blockly.BlockSvg.prototype.initSvg = function() {
 Blockly.BlockSvg.prototype.makeAriaLabel = function() {
   var lab = '';
   var workspace = this.workspace;
-  var blankText = 'NOTHING';
   for (var input of this.inputList) {
     // space out the text from each field in fieldRow
     lab += input.fieldRow.reduce((str, n) => str + n.getText() + ' ', '');
 
+    // drawing information from all inline fields and connections
     if (input.connection && input.type === 1) {
       if (input.connection.targetConnection) {
         var targetBlock = input.connection.targetConnection.getSourceBlock();
         lab += targetBlock.makeAriaLabel() + ' ';
       } else {
-        lab += blankText + ' ';
+        lab += 'NOTHING ';
       }
     }
   }
@@ -204,12 +204,12 @@ Blockly.BlockSvg.prototype.makeAriaLabel = function() {
 *  @param {Blockly.Block} block The block to get text from.
 */
 Blockly.BlockSvg.prototype.updateLabel = function(recurse = true) {
+  // TODO: don't use privately marked variable
   if (this.svgPath_) {
     this.svgPath_.setAttribute('aria-label', this.makeAriaLabel());
     if (recurse && this.getParent()) {
       this.getParent().updateLabel();
     }
-    this.svgPath_.setAttribute('aria-description', this.tooltip);
   }
 }
 
