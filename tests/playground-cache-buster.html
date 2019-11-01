@@ -141,9 +141,9 @@ function start() {
             scaleSpeed: 1.1
           }
       });
-  // injectAccessibleToolbox('blocklyDiv');
-  // document.getElementsByClassName('injectionDiv')[0].style = "float:left; width:70%;";
-  workspace.linearizationToolbox = new Blockly.LinearizationToolbox(workspace);
+  injectAccessibleToolbox('blocklyDiv');
+  document.getElementsByClassName('injectionDiv')[0].style = "float:left; width:70%;";
+  // workspace.linearizationToolbox = new Blockly.LinearizationToolbox(workspace);
   addToolboxButtonCallbacks();
   // Restore previously displayed text.
   if (sessionStorage) {
