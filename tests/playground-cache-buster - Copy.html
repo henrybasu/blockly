@@ -141,7 +141,7 @@ function start() {
             scaleSpeed: 1.1
           }
       });
-  injectAccessibleToolbox('blocklyDiv');
+  injectToolbox(document.getElementById('blocklyDiv'));
   document.getElementsByClassName('injectionDiv')[0].style = "float:left; width:70%;";
   // workspace.linearizationToolbox = new Blockly.LinearizationToolbox(workspace);
   addToolboxButtonCallbacks();
@@ -264,32 +264,16 @@ function getToolboxElement() {
   return document.getElementById('toolbox-' + toolboxSuffix);
 }
 
-// container: the container blockly is in
-// TODO: split into 2 methods, one to inject html 
-// // and one to populate category menu
-function injectAccessibleToolbox(container) {
-  container = document.getElementById(container);
-  // overarching container for the flyout + toolbox assembly
-  var subContainer = document.createElement('div');
-  subContainer.setAttribute('id', 'addBlocks');
-  // rests to the right of the workspace
-  var testNode = document.createElement('p');
-    subContainer.appendChild(testNode);
-
-  // container with actual blocks
-  var flyoutContainer = document.createElement('div');
-  flyoutContainer.setAttribute('id', 'flyoutContainer');
-  var blockList = document.createElement('ul');
-  flyoutContainer.appendChild(blockList);
-  // container with categories/controls
+function injectToolbox(container) {
   var navContainer = document.createElement('div');
   navContainer.setAttribute('id', 'navBar');
-  
-  appendChildren(subContainer, [flyoutContainer, navContainer]);
+  container.appendChild(navContainer);
+  navContainer.appendChild(getNavList());
 
+}
+
+function getNavList() {
   var buttonList = document.createElement('ul');
-  navContainer.appendChild(buttonList);
-
   workspace.getToolbox().tree_.getChildren()
     .filter(child => !(child instanceof Blockly.Toolbox.TreeSeparator))
     .map((child) => {
@@ -297,44 +281,52 @@ function injectAccessibleToolbox(container) {
       buttonSpan.setAttribute('role', 'button'); // for accessibility
       var button = document.createElement('li');
       button.setAttribute('class', 'categoryButton');
-      console.log(child, child.getElement);  
-      buttonSpan.innerText = child.getElement().innerText; // im not exactly sure what .getElement() is...
+      buttonSpan.innerText = child.getElement().innerText;
 
-      button.addEventListener('click', () => {populateFlyout(child)});
+      button.addEventListener('click', () => {popFlyout(child)});
       button.appendChild(buttonSpan);
       buttonList.appendChild(button);
-    }
-  )
-  subContainer.appendChild(navContainer);
-  container.appendChild(subContainer);
+    })
+  return buttonList;
 }
 
-// takes in a node from category tree and populates flyout with that category's blocks
-function populateFlyout(treeNode) {
-  console.log('clicked!');
+function createButton(elem) {
+  var elemButton = document.createElement('span');
+  elemButton.setAttribute('role', 'button');
+  elemButton.appendChild(elem);
+  return elemButton;
+}
+
+function popFlyout(category) {
+  console.log('nice');
   var blockList = undefined;
   // for variables and functions
-  if (typeof treeNode.blocks === 'string') {
+  if (typeof category.blocks === 'string') {
     // getting the function which gets the proper blocks for 'custom' category
-    var fn = workspace.getToolboxCategoryCallback(treeNode.blocks);
+    var fn = workspace.getToolboxCategoryCallback(category.blocks);
     blockList = fn(workspace); // getting the blocks for the category
   } else {
-    var blockList = [...treeNode.blocks];
+    var blockList = [...category.blocks];
   }
 
-  var flyout = document.getElementById('flyoutContainer');
-  flyout.setAttribute('curSelected', treeNode.styleName);
-  var blockListElem = flyout.firstChild;  
-  blockListElem.setAttribute('id', 'blockList');
+  var navBar = document.getElementById('navBar');
+  navBar.setAttribute('curSelected', category.styleName);
+  var blockListElem = navBar.firstChild;  
   blockListElem.innerHTML = '';
+  var returnButtonItem = document.createElement('li');
+  returnButtonItem.textContent = 'return to ' + category.styleName;
+  returnButtonItem.setAttribute('class', 'categoryButton');
+  returnButtonItem.addEventListener('click', () => {
+    navBar.replaceChild(getNavList(), navBar.childNodes[0]);
+  });
 
-  // TODO: update call function block names when you change name on workspace
-  // to do this, try linking the call function blocks in flyout to their def functino blocks in workspace
-  // then, listen for change events and go thru all of them?
+  blockListElem.appendChild(createButton(returnButtonItem));
+
+
   blockList.filter((item) => item.tagName.toUpperCase() === 'BLOCK')
     .map((block) => {
-      var blockElem = document.createElement('li');
-      blockElem.setAttribute('class', 'blockItem');
+      var blockItem = document.createElement('li');
+      blockItem.setAttribute('class', 'categoryButton');
       var blockButton = document.createElement('span');   
       blockButton.setAttribute('role', 'button');
       /** block type as label vs. aria label (kinda bad sometimes) as label **/
@@ -344,12 +336,10 @@ function populateFlyout(treeNode) {
       blockButton.setAttribute('aria-label', labelAndDescrip[0]);
       blockButton.setAttribute('aria-description', 'test description');
   
-      blockElem.appendChild(blockButton);
-      blockElem.addEventListener('click', e => addBlockToWorkspace(block));
-      blockListElem.appendChild(blockElem); 
-    }
-  )
-  flyout.appendChild(blockListElem)
+      blockItem.appendChild(blockButton);
+      blockItem.addEventListener('click', e => addBlockToWorkspace(block));
+      blockListElem.appendChild(blockItem); 
+    })
 }
 
 // block DOM object as input
@@ -408,7 +398,6 @@ function addBlockToWorkspace(blockDOM) {
   updateFlyout();
 }
 
-// updates flyout to include potentially new blocks, e.g. new function or variable blocks 
 function updateFlyout() {
   var curCategory = workspace.getToolbox().tree_.getChildren()
     .filter(child => child.styleName === flyoutContainer.getAttribute('curSelected'))[0];
@@ -605,6 +594,7 @@ h1 {
   display:block; 
   padding: 8px 16px; 
   background-color: #cdd4cf;
+  margin: 3px 0px;
 }
 
 </style>
