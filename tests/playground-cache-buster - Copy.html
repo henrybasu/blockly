@@ -91,7 +91,7 @@ function start() {
   // Parse the URL arguments.
   var match = location.search.match(/dir=([^&]+)/);
   var rtl = match && match[1] == 'rtl';
-  document.forms.options.elements.dir.selectedIndex = Number(rtl);
+  // document.forms.options.elements.dir.selectedIndex = Number(rtl);
   var toolbox = getToolboxElement();
   var toolboxNames = [
       'toolbox-categories',
@@ -99,11 +99,11 @@ function start() {
       'toolbox-simple',
       'toolbox-test-blocks'
   ];
-  document.forms.options.elements.toolbox.selectedIndex =
-      toolboxNames.indexOf(toolbox.id);
+  // document.forms.options.elements.toolbox.selectedIndex =
+  //     toolboxNames.indexOf(toolbox.id);
   match = location.search.match(/side=([^&]+)/);
   var side = match ? match[1] : 'start';
-  document.forms.options.elements.side.value = side;
+  // document.forms.options.elements.side.value = side;
   // Create main workspace.
   workspace = Blockly.inject('blocklyDiv',
       {
@@ -146,19 +146,19 @@ function start() {
   // workspace.linearizationToolbox = new Blockly.LinearizationToolbox(workspace);
   addToolboxButtonCallbacks();
   // Restore previously displayed text.
-  if (sessionStorage) {
-    var text = sessionStorage.getItem('textarea');
-    if (text) {
-      document.getElementById('importExport').value = text;
-    }
-    // Restore event logging state.
-    var state = sessionStorage.getItem('logEvents');
-    logEvents(Boolean(Number(state)));
-  } else {
-    // MSIE 11 does not support sessionStorage on file:// URLs.
-    logEvents(false);
-  }
-  taChange();
+  // if (sessionStorage) {
+  //   var text = sessionStorage.getItem('textarea');
+  //   if (text) {
+  //     document.getElementById('importExport').value = text;
+  //   }
+  //   // Restore event logging state.
+  //   // var state = sessionStorage.getItem('logEvents');
+  //   // logEvents(Boolean(Number(state)));
+  // } else {
+  //   // MSIE 11 does not support sessionStorage on file:// URLs.
+  //   logEvents(false);
+  // }
+  // taChange();
 
   // Mac students added this code
   workspace.linearization = new Blockly.Linearization(
@@ -167,43 +167,23 @@ function start() {
     document.getElementById('mainNavList')
   )
     workspace.linearization.setFontSize(14)
-    workspace.addChangeListener(onBlockAddOrRemove);
+    workspace.addChangeListener(onBlockChangeOrRemove);
     // workspace.addChangeListener(onChange);
   // Mac students added this code
+
+  document.getElementsByClassName('blocklyToolboxDiv')[0].style.display = 'none';
 }
 
 /**
  * Adjusts global offset to add to blocks when blocks are added or removed
  *
  */
-function onBlockAddOrRemove(event) {
+function onBlockChangeOrRemove(event) {
   var block = workspace.getBlockById(event.blockID);
-
-  // check if block exists to avoid error
-  // TODO: clean up redundancy, also fix this: the reduction of dy when blocks are deleted doesn't work 
-  if (block) {
-    var w = block.getHeightWidth().width;
-    var h = block.getHeightWidth().height;
-
-    if (event.type === "create") {
-      if (w >= maxdx) {
-        maxdx = w;
-      }
-      if (dy >= 500) {
-        dy = 0;
-        dx += maxdx;
-      } else {
-        dy += h + 10;
-      }
-    }
-  
-    if (event.type === "delete") {
-      dy -= (h + 10);
-    }
-  }
 
   if (event.type === "delete") {
     updateFlyout();
+    dy -= (block.getHeightWidth().height + 10)
   }
 
   if (event.type === "change") {
@@ -376,7 +356,6 @@ function domToBlockData(elem) {
 }
 
 var dx = 0;
-var maxdx = 0;
 var dy = 0;
 
 // block DOM object as input
@@ -386,78 +365,78 @@ function addBlockToWorkspace(blockDOM) {
   block.moveBy(dx, dy);
   block.initSvg();
   workspace.render();
-  if (block.getHeightWidth().width >= maxdx) {
-    maxdx = block.getHeightWidth().width;
-  }
-  if (dy >= 500) {
+  console.log('old dy', dy);
+  if (dy >= document.getElementById('blocklyDiv').offsetHeight - 50) {
     dy = 0;
-    dx += maxdx;
+    dx += 100;
   } else {
     dy += (block.getHeightWidth().height + 10);
   }
+  console.log('new dy', dy);
   updateFlyout();
 }
 
 function updateFlyout() {
+  var navBar = document.getElementById('navBar');
   var curCategory = workspace.getToolbox().tree_.getChildren()
-    .filter(child => child.styleName === flyoutContainer.getAttribute('curSelected'))[0];
-  populateFlyout(curCategory);
+    .filter(child => child.styleName === navBar.getAttribute('curSelected'))[0];
+  popFlyout(curCategory);
 }
 
-function toXml() {
-  var output = document.getElementById('importExport');
-  var xml = Blockly.Xml.workspaceToDom(workspace);
-  output.value = Blockly.Xml.domToPrettyText(xml);
-  output.focus();
-  output.select();
-  taChange();
-}
+// function toXml() {
+//   var output = document.getElementById('importExport');
+//   var xml = Blockly.Xml.workspaceToDom(workspace);
+//   output.value = Blockly.Xml.domToPrettyText(xml);
+//   output.focus();
+//   output.select();
+//   taChange();
+// }
 
-function fromXml() {
-  var input = document.getElementById('importExport');
-  var xml = Blockly.Xml.textToDom(input.value);
-  Blockly.Xml.domToWorkspace(xml, workspace);
-  taChange();
-}
+// function fromXml() {
+//   var input = document.getElementById('importExport');
+//   var xml = Blockly.Xml.textToDom(input.value);
+//   Blockly.Xml.domToWorkspace(xml, workspace);
+//   taChange();
+// }
 
-function toCode(lang) {
-  var output = document.getElementById('importExport');
-  output.value = Blockly[lang].workspaceToCode(workspace);
-  taChange();
-}
+// function toCode(lang) {
+//   var output = document.getElementById('importExport');
+//   output.value = Blockly[lang].workspaceToCode(workspace);
+//   taChange();
+// }
 
 // Disable the "Import from XML" button if the XML is invalid.
 // Preserve text between page reloads.
-function taChange() {
-  var textarea = document.getElementById('importExport');
-  if (sessionStorage) {
-    sessionStorage.setItem('textarea', textarea.value);
-  }
-  var valid = true;
-  try {
-    Blockly.Xml.textToDom(textarea.value);
-  } catch (e) {
-    valid = false;
-  }
-  document.getElementById('import').disabled = !valid;
-}
+// function taChange() {
+//   var textarea = document.getElementById('importExport');
+//   if (sessionStorage) {
+//     sessionStorage.setItem('textarea', textarea.value);
+//   }
+//   var valid = true;
+//   try {
+//     Blockly.Xml.textToDom(textarea.value);
+//   } catch (e) {
+//     valid = false;
+//   }
+//   document.getElementById('import').disabled = !valid;
+// }
 
-function logEvents(state) {
-  var checkbox = document.getElementById('logCheck');
-  checkbox.checked = state;
-  if (sessionStorage) {
-    sessionStorage.setItem('logEvents', Number(state));
-  }
-  if (state) {
-    workspace.addChangeListener(logger);
-  } else {
-    workspace.removeChangeListener(logger);
-  }
-}
+// function logEvents(state) {
+//   var checkbox = document.getElementById('logCheck');
+//   checkbox.checked = state;
+//   if (sessionStorage) {
+//     sessionStorage.setItem('logEvents', Number(state));
+//   }
+//   if (state) {
+//     workspace.addChangeListener(logger);
+//   } else {
+//     workspace.removeChangeListener(logger);
+//   }
+// }
 
-function logger(e) {
-  console.log(e);
-}
+// function logger(e) {
+//   console.log(e);
+// }
 
 function appendChildren(element, children) {
   for (var child of children) {
@@ -465,66 +444,66 @@ function appendChildren(element, children) {
   }
 }
 
-function airstrike(n) {
-  var prototypes = [];
-  var toolbox = getToolboxElement();
-  var blocks = toolbox.getElementsByTagName('block');
-  for (var i = 0, block; block = blocks[i]; i++) {
-    prototypes.push(block.getAttribute('type'));
-  }
-  for (var i = 0; i < n; i++) {
-    var prototype = prototypes[Math.floor(Math.random() * prototypes.length)];
-    var block = workspace.newBlock(prototype);
-    block.initSvg();
-    block.getSvgRoot().setAttribute('transform', 'translate(' +
-        Math.round(Math.random() * 450 + 40) + ', ' +
-        Math.round(Math.random() * 600 + 40) + ')');
-    block.render();
-  }
-}
+// function airstrike(n) {
+//   var prototypes = [];
+//   var toolbox = getToolboxElement();
+//   var blocks = toolbox.getElementsByTagName('block');
+//   for (var i = 0, block; block = blocks[i]; i++) {
+//     prototypes.push(block.getAttribute('type'));
+//   }
+//   for (var i = 0; i < n; i++) {
+//     var prototype = prototypes[Math.floor(Math.random() * prototypes.length)];
+//     var block = workspace.newBlock(prototype);
+//     block.initSvg();
+//     block.getSvgRoot().setAttribute('transform', 'translate(' +
+//         Math.round(Math.random() * 450 + 40) + ', ' +
+//         Math.round(Math.random() * 600 + 40) + ')');
+//     block.render();
+//   }
+// }
 
-function spaghetti(n) {
-  var xml = spaghettiXml;
-  for(var i = 0; i < n; i++) {
-    xml = xml.replace(/(<(statement|next)( name="DO0")?>)<\//g,
-        '$1' + spaghettiXml + '</');
-  }
-  xml = '<xml xmlns="http://www.w3.org/1999/xhtml">' + xml + '</xml>';
-  var dom = Blockly.Xml.textToDom(xml);
-  console.time('Spaghetti domToWorkspace');
-  Blockly.Xml.domToWorkspace(dom, workspace);
-  console.timeEnd('Spaghetti domToWorkspace');
-}
-var spaghettiXml = [
-  '  <block type="controls_if">',
-  '    <value name="IF0">',
-  '      <block type="logic_compare">',
-  '        <field name="OP">EQ</field>',
-  '        <value name="A">',
-  '          <block type="math_arithmetic">',
-  '            <field name="OP">MULTIPLY</field>',
-  '            <value name="A">',
-  '              <block type="math_number">',
-  '                <field name="NUM">6</field>',
-  '              </block>',
-  '            </value>',
-  '            <value name="B">',
-  '              <block type="math_number">',
-  '                <field name="NUM">7</field>',
-  '              </block>',
-  '            </value>',
-  '          </block>',
-  '        </value>',
-  '        <value name="B">',
-  '          <block type="math_number">',
-  '            <field name="NUM">42</field>',
-  '          </block>',
-  '        </value>',
-  '      </block>',
-  '    </value>',
-  '    <statement name="DO0"></statement>',
-  '    <next></next>',
-  '  </block>'].join('\n');
+// function spaghetti(n) {
+//   var xml = spaghettiXml;
+//   for(var i = 0; i < n; i++) {
+//     xml = xml.replace(/(<(statement|next)( name="DO0")?>)<\//g,
+//         '$1' + spaghettiXml + '</');
+//   }
+//   xml = '<xml xmlns="http://www.w3.org/1999/xhtml">' + xml + '</xml>';
+//   var dom = Blockly.Xml.textToDom(xml);
+//   console.time('Spaghetti domToWorkspace');
+//   Blockly.Xml.domToWorkspace(dom, workspace);
+//   console.timeEnd('Spaghetti domToWorkspace');
+// }
+// var spaghettiXml = [
+//   '  <block type="controls_if">',
+//   '    <value name="IF0">',
+//   '      <block type="logic_compare">',
+//   '        <field name="OP">EQ</field>',
+//   '        <value name="A">',
+//   '          <block type="math_arithmetic">',
+//   '            <field name="OP">MULTIPLY</field>',
+//   '            <value name="A">',
+//   '              <block type="math_number">',
+//   '                <field name="NUM">6</field>',
+//   '              </block>',
+//   '            </value>',
+//   '            <value name="B">',
+//   '              <block type="math_number">',
+//   '                <field name="NUM">7</field>',
+//   '              </block>',
+//   '            </value>',
+//   '          </block>',
+//   '        </value>',
+//   '        <value name="B">',
+//   '          <block type="math_number">',
+//   '            <field name="NUM">42</field>',
+//   '          </block>',
+//   '        </value>',
+//   '      </block>',
+//   '    </value>',
+//   '    <statement name="DO0"></statement>',
+//   '    <next></next>',
+//   '  </block>'].join('\n');
 
 </script>
 
@@ -546,16 +525,13 @@ h1 {
   height: 95%;
   width: 70%;
 }
-#toolboxDiv {
-  float: right;
-}
 #importExport {
   font-family: monospace;
 }
 #mainNavList {
   overflow: auto;
-  max-height: 180px;
-  min-height: 180px;
+  /*max-height: 180px;*/
+  /*min-height: 180px;*/
   margin-left: 2px;
   padding-left: 0px;
 }
@@ -565,18 +541,11 @@ h1 {
 .ioLabel>.blocklyFlyoutLabelText {
   font-style: italic;
 }
+
 #navBar {
   float: right;
   position: fixed;
   right: 5px;
-}
-#flyoutContainer {
-  float: left;
-  width: 80%;
-}
-#addBlocks {
-  float: left;
-  width: 20%;
 }
 #blockList {
   position: relative;
@@ -605,10 +574,10 @@ h1 {
 
   <h1>Blockly Playground</h1>
 
-  <p><a href="javascript:void(workspace.setVisible(true))">Show</a>
-   - <a href="javascript:void(workspace.setVisible(false))">Hide</a></p>
+<!--   <p><a href="javascript:void(workspace.setVisible(true))">Show</a>
+   <a href="javascript:void(workspace.setVisible(false))">Hide</a></p> -->
 
-  <form id="options">
+  <!-- <form id="options">
     <select name="dir" onchange="document.forms.options.submit()">
       <option value="ltr">LTR</option>
       <option value="rtl">RTL</option>
@@ -659,7 +628,7 @@ h1 {
     Log events: &nbsp;
     <input type="checkbox" onclick="logEvents(this.checked)" id="logCheck">
   </p>
-
+ -->
   <!-- The next three blocks of XML are sample toolboxes for testing basic
   configurations.  For more information on building toolboxes, see https://developers.google.com/blockly/guides/configure/web/toolbox -->
 
