@@ -143,6 +143,7 @@ function start() {
       });
   injectToolbox(document.getElementById('blocklyDiv'));
   document.getElementsByClassName('injectionDiv')[0].style = "float:left; width:70%;";
+  //document.getElementsByClassName('injectionDiv')[0].setAttribute('aria-hidden', 'true') // do this to stop screenreader selection???
   // workspace.linearizationToolbox = new Blockly.LinearizationToolbox(workspace);
   addToolboxButtonCallbacks();
   // Restore previously displayed text.
@@ -390,6 +391,11 @@ function updateFlyout() {
   popFlyout(curCategory);
 }
 
+function updateFontSize(value) {
+  console.log("hiiiii");
+  workspace.linearization.setFontSize(value);
+}
+
 // function toXml() {
 //   var output = document.getElementById('importExport');
 //   var xml = Blockly.Xml.workspaceToDom(workspace);
@@ -553,6 +559,7 @@ h1 {
   float: right;
   position: fixed;
   right: 5px;
+  max-width: 20%;
 }
 #blockList {
   position: relative;
@@ -571,6 +578,8 @@ h1 {
   padding: 8px 16px; 
   background-color: #cdd4cf;
   margin: 3px 0px;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 </style>
@@ -1545,6 +1554,17 @@ h1 {
   </xml>
 
   <!-- Mac students added this code -->
+  <span aria-label="Buffer from linearization controls to web controls"></span> 
+  <label for="Font size">Font size</label>
+  <input type="range" role="slider" 
+    min="8"
+    max="100"
+    value="14"
+    step="2"
+    aria-valuemin="8"
+    aria-valuemax="100"
+    aria-valuenow="14"
+    oninput="updateFontSize(value)">
   <p id='parentNav'></p>
   <ul id='mainNavList'><ul>
   <!-- Mac students added this code -->
