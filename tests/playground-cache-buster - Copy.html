@@ -162,12 +162,6 @@ function start() {
   // taChange();
 
   // Mac students added this code
-  var blockDescription = document.createElement("div");
-  blockDescription.setAttribute("id", "blockDescrip");
-  blockDescription.style.visibility = "hidden";
-  blockDescription.innerText = "This is a test description.";
-  document.body.appendChild(blockDescription);
-
   workspace.linearization = new Blockly.Linearization(
     workspace,
     document.getElementById('parentNav'),
@@ -319,10 +313,17 @@ function popFlyout(category) {
       blockButton.setAttribute('role', 'button');
       /** block type as label vs. aria label (kinda bad sometimes) as label **/
       // blockButton.textContent = block.getAttribute('type');
-      var labelAndDescrip = getLabelAndDescription(block);
-      blockButton.textContent = labelAndDescrip[0];
-      blockButton.setAttribute('aria-label', labelAndDescrip[0] + 'aaaaaa');
-      blockButton.setAttribute('aria-describedby', "blockDescrip");
+      var info = getBlockInfo(block);
+      blockButton.textContent = info[0];
+      blockButton.setAttribute('aria-label', info[0]);
+      blockButton.setAttribute('aria-describedby', info[2]);
+
+      var blockDescription = document.createElement("div");
+      blockDescription.setAttribute("id", info[2]);
+      blockDescription.style.visibility = "hidden";
+      blockDescription.innerText = info[1];
+      console.log("INFO[1] IS: " + info[1]);
+      document.body.appendChild(blockDescription);
   
       blockItem.appendChild(blockButton);
       blockItem.addEventListener('click', e => addBlockToWorkspace(block));
@@ -331,12 +332,16 @@ function popFlyout(category) {
 }
 
 // block DOM object as input
-function getLabelAndDescription(blockDOM) {
+// returns block arialabel, ariadescription, and id
+function getBlockInfo(blockDOM) {
   Blockly.Events.disable();
   var tempBlock = Blockly.Xml.domToBlock(blockDOM, workspace);
   tempBlock.render();
   var ariaLabel = tempBlock.makeAriaLabel();
-  var ariaDescription = tempBlock.svgPath_.tooltip;
+  var id = tempBlock.type + "-descrip";
+  console.log(tempBlock);
+  var ariaDescription = typeof(tempBlock.tooltip) === "function" ? 
+    tempBlock.tooltip : tempBlock.tooltip;
   var varList = tempBlock.getVarModels(); //TODO: sometime this is undefined? for (call do_something w/ return) blocks
 
   // TODO: document.defaultView is incompatible with Microsoft browsers before IE9
@@ -349,7 +354,7 @@ function getLabelAndDescription(blockDOM) {
   }
   tempBlock.dispose();
   Blockly.Events.enable();
-  return [ariaLabel, ariaDescription];
+  return [ariaLabel, ariaDescription, id];
 }
 
 function domToBlockData(elem) {
