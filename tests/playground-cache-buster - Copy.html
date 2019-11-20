@@ -161,6 +161,12 @@ function start() {
   // taChange();
 
   // Mac students added this code
+  var blockDescription = document.createElement("div");
+  blockDescription.setAttribute("id", "blockDescrip");
+  blockDescription.style.visibility = "hidden";
+  blockDescription.innerText = "This is a test description.";
+  document.body.appendChild(blockDescription);
+
   workspace.linearization = new Blockly.Linearization(
     workspace,
     document.getElementById('parentNav'),
@@ -292,6 +298,7 @@ function popFlyout(category) {
   var navBar = document.getElementById('navBar');
   navBar.setAttribute('curSelected', category.styleName);
   var blockListElem = navBar.firstChild;  
+  console.log(blockListElem)
   blockListElem.innerHTML = '';
   var returnButtonItem = document.createElement('li');
   returnButtonItem.textContent = 'return to ' + category.styleName;
@@ -313,8 +320,8 @@ function popFlyout(category) {
       // blockButton.textContent = block.getAttribute('type');
       var labelAndDescrip = getLabelAndDescription(block);
       blockButton.textContent = labelAndDescrip[0];
-      blockButton.setAttribute('aria-label', labelAndDescrip[0]);
-      blockButton.setAttribute('aria-description', 'test description');
+      blockButton.setAttribute('aria-label', labelAndDescrip[0] + 'aaaaaa');
+      blockButton.setAttribute('aria-describedby', "blockDescrip");
   
       blockItem.appendChild(blockButton);
       blockItem.addEventListener('click', e => addBlockToWorkspace(block));
