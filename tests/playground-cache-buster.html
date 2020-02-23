@@ -85,8 +85,8 @@
 'use strict';
 var workspace = null;
 
-function start() {
   setBackgroundColour();
+function start() {
 
   // Parse the URL arguments.
   var match = location.search.match(/dir=([^&]+)/);
@@ -557,9 +557,6 @@ h1 {
   height: 95%;
   width: 70%;
 }
-#toolboxDiv {
-  float: right;
-}
 #importExport {
   font-family: monospace;
 }
@@ -569,12 +566,7 @@ h1 {
   min-height: 180px;
   margin-left: 2px;
   padding-left: 0px;
-}
-#mainNavList * {
   margin-bottom: 6px;
-}
-.ioLabel>.blocklyFlyoutLabelText {
-  font-style: italic;
 }
 #navBar {
   float: right;

@@ -1,0 +1,545 @@
+  <!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Blockly Playground</title>
+<script src="../blockly_uncompressed.js"></script>
+<script type="application/javascript">
+    <!--
+    let scripts = [
+        "../generators/javascript.js",
+        "../generators/javascript/logic.js",
+        "../generators/javascript/loops.js",
+        "../generators/javascript/math.js",
+        "../generators/javascript/text.js",
+        "../generators/javascript/lists.js",
+        "../generators/javascript/colour.js",
+        "../generators/javascript/variables.js",
+        "../generators/javascript/variables_dynamic.js",
+        "../generators/javascript/procedures.js",
+        "../generators/javascript/rhyme.js",
+        "../generators/python.js",
+        "../generators/python/logic.js",
+        "../generators/python/loops.js",
+        "../generators/python/math.js",
+        "../generators/python/text.js",
+        "../generators/python/lists.js",
+        "../generators/python/colour.js",
+        "../generators/python/variables.js",
+        "../generators/python/variables_dynamic.js",
+        "../generators/python/procedures.js",
+        "../generators/php.js",
+        "../generators/php/logic.js",
+        "../generators/php/loops.js",
+        "../generators/php/math.js",
+        "../generators/php/text.js",
+        "../generators/php/lists.js",
+        "../generators/php/colour.js",
+        "../generators/php/variables.js",
+        "../generators/php/variables_dynamic.js",
+        "../generators/php/procedures.js",
+        "../generators/lua.js",
+        "../generators/lua/logic.js",
+        "../generators/lua/loops.js",
+        "../generators/lua/math.js",
+        "../generators/lua/text.js",
+        "../generators/lua/lists.js",
+        "../generators/lua/colour.js",
+        "../generators/lua/variables.js",
+        "../generators/lua/variables_dynamic.js",
+        "../generators/lua/procedures.js",
+        "../generators/dart.js",
+        "../generators/dart/logic.js",
+        "../generators/dart/loops.js",
+        "../generators/dart/math.js",
+        "../generators/dart/text.js",
+        "../generators/dart/lists.js",
+        "../generators/dart/colour.js",
+        "../generators/dart/variables.js",
+        "../generators/dart/variables_dynamic.js",
+        "../generators/dart/procedures.js",
+        "../msg/messages.js",
+        "../blocks/logic.js",
+        "../blocks/loops.js",
+        "../blocks/math.js",
+        "../blocks/text.js",
+        "../blocks/lists.js",
+        "../blocks/colour.js",
+        "../blocks/variables.js",
+        "../blocks/variables_dynamic.js",
+        "../blocks/procedures.js",
+        "blocks/test_blocks.js",
+        "blocks/nursery_blocks.js"
+        // ,"../core/linearization.js"
+    ];
+
+    // Constantly-changing query string is ignored by server, but causes
+    // client to re-request JS files instead of caching them
+    let cacheBuster = "?" + new Date().getTime();
+
+    for (let script of scripts) {
+        document.write("<script src='" + script + cacheBuster + "'></script>")
+    }
+    -->
+</script>
+
+<script>
+'use strict';
+var workspace = null;
+
+function start() {
+  setBackgroundColour();
+
+  // Parse the URL arguments.
+  var match = location.search.match(/dir=([^&]+)/);
+  var rtl = match && match[1] == 'rtl';
+  // document.forms.options.elements.dir.selectedIndex = Number(rtl);
+  var toolbox = getToolboxElement();
+  var toolboxNames = [
+      'toolbox-categories',
+      'toolbox-categories-typed-variables',
+      'toolbox-simple',
+      'toolbox-test-blocks'
+  ];
+  // document.forms.options.elements.toolbox.selectedIndex =
+  //     toolboxNames.indexOf(toolbox.id);
+  match = location.search.match(/side=([^&]+)/);
+  var side = match ? match[1] : 'start';
+  // document.forms.options.elements.side.value = side;
+  // Create main workspace.
+  workspace = Blockly.inject('blocklyDiv',
+      {
+        comments: true,
+        collapse: true,
+        disable: true,
+        grid:
+          {
+            spacing: 25,
+            length: 3,
+            colour: '#ccc',
+            snap: true
+          },
+        horizontalLayout: side == 'top' || side == 'bottom',
+        maxBlocks: Infinity,
+        maxInstances: {'test_basic_limit_instances': 3},
+        media: '../media/',
+        oneBasedIndex: true,
+        readOnly: false,
+        rtl: rtl,
+        move: {
+          scrollbars: true,
+          drag: true,
+          wheel: false,
+        },
+        toolbox: toolbox,
+        toolboxPosition: side == 'top' || side == 'start' ? 'start' : 'end',
+        zoom:
+          {
+            controls: true,
+            wheel: true,
+            startScale: 1.0,
+            maxScale: 4,
+            minScale: 0.25,
+            scaleSpeed: 1.1
+          }
+      });
+  injectToolbox(document.getElementById('blocklyDiv'));
+  document.getElementsByClassName('injectionDiv')[0].style = "float:left; width:70%;";
+  //document.getElementsByClassName('injectionDiv')[0].setAttribute('aria-hidden', 'true') // do this to stop screenreader selection???
+  // workspace.linearizationToolbox = new Blockly.LinearizationToolbox(workspace);
+  addToolboxButtonCallbacks();
+  // Restore previously displayed text.
+  // if (sessionStorage) {
+  //   var text = sessionStorage.getItem('textarea');
+  //   if (text) {
+  //     document.getElementById('importExport').value = text;
+  //   }
+  //   // Restore event logging state.
+  //   // var state = sessionStorage.getItem('logEvents');
+  //   // logEvents(Boolean(Number(state)));
+  // } else {
+  //   // MSIE 11 does not support sessionStorage on file:// URLs.
+  //   logEvents(false);
+  // }
+  // taChange();
+
+  // Mac students added this code
+  workspace.linearization = new Blockly.Linearization(
+    workspace,
+    document.getElementById('parentNav'),
+    document.getElementById('mainNavList')
+  )
+    workspace.linearization.setFontSize(14)
+    workspace.addChangeListener(onBlockChangeOrRemove);
+    // workspace.addChangeListener(onChange);
+  // Mac students added this code
+
+  document.getElementsByClassName('blocklyToolboxDiv')[0].style.display = 'none';
+
+  var speak_block = document.getElementById("start_block");
+  var verse_set_block = document.getElementById("start_verse_Set");
+  addBlockToWorkspace(speak_block, false);
+  addBlockToWorkspace(verse_set_block, false);
+}
+
+/**
+ * Adjusts global offset to add to blocks when blocks are added or removed
+ *
+ */
+function onBlockChangeOrRemove(event) {
+  var block = workspace.getBlockById(event.blockID);
+
+  if (event.type === "delete") {
+    updateFlyout();
+    dy -= 50
+  }
+
+  if (event.type === "change") {
+    if (event.element === 'field' && event.name === 'NAME') {
+      updateFlyout();
+    }
+  }
+}
+
+function addToolboxButtonCallbacks() {
+  var randomizeLabelText = function(button) {
+    var blocks = button.targetWorkspace_
+        .getBlocksByType('test_fields_label_serializable');
+    var possible = 'AB';
+    for (var i = 0, block; block = blocks[i]; i++) {
+      var text = '';
+      for (var j = 0; j < 4; j++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+      }
+      block.setFieldValue(text, 'LABEL');
+    }
+  };
+
+  workspace.registerButtonCallback(
+    'randomizeLabelText', randomizeLabelText);
+  workspace.registerButtonCallback(
+      'addDynamicOption', Blockly.TestBlocks.addDynamicDropdownOption_);
+  workspace.registerButtonCallback(
+      'removeDynamicOption', Blockly.TestBlocks.removeDynamicDropdownOption_);
+}
+
+function changeTheme() {
+  var theme = document.getElementById('themeChanger');
+  if (theme.value === "modern") {
+    Blockly.setTheme(Blockly.Themes.Modern);
+  } else if (theme.value === "high_contrast") {
+    Blockly.setTheme(Blockly.Themes.HighContrast);
+  } else {
+    Blockly.setTheme(Blockly.Themes.Classic);
+  }
+}
+
+function setBackgroundColour() {
+  // Set background colour to differentiate server vs local copy.
+  if (location.protocol == 'file:') {
+    var lilac = '#d6d6ff';
+    document.body.style.backgroundColor = lilac;
+  }
+}
+
+function getToolboxElement() {
+  var match = location.search.match(/toolbox=([^&]+)/);
+  // Default to the basic toolbox with categories and untyped variables,
+  // but override that if the toolbox type is set in the URL.
+  var toolboxSuffix = (match ? match[1] : 'categories');
+  // The three possible values are: "simple", "categories",
+  // "categories-typed-variables".
+  return document.getElementById('toolbox-' + toolboxSuffix);
+}
+
+function injectToolbox(container) {
+  var navContainer = document.createElement('div');
+  navContainer.setAttribute('id', 'navBar');
+  container.appendChild(navContainer);
+  navContainer.appendChild(getNavList());
+
+}
+
+function getNavList() {
+  var buttonList = document.createElement('ul');
+  workspace.getToolbox().tree_.getChildren()
+    .filter(child => !(child instanceof Blockly.Toolbox.TreeSeparator))
+    .map((child) => {
+      var buttonSpan = document.createElement('span');
+      buttonSpan.setAttribute('role', 'button'); // for accessibility
+      var button = document.createElement('li');
+      button.setAttribute('class', 'categoryButton');
+      buttonSpan.innerText = child.getElement().innerText;
+
+      button.addEventListener('click', () => {popFlyout(child)});
+      button.appendChild(buttonSpan);
+      buttonList.appendChild(button);
+    })
+  return buttonList;
+}
+
+function createButton(elem) {
+  var elemButton = document.createElement('span');
+  elemButton.setAttribute('role', 'button');
+  elemButton.appendChild(elem);
+  return elemButton;
+}
+
+function popFlyout(category) {
+  var blockList = undefined;
+  // for variables and functions
+  if (typeof category.blocks === 'string') {
+    // getting the function which gets the proper blocks for 'custom' category
+    var fn = workspace.getToolboxCategoryCallback(category.blocks);
+    blockList = fn(workspace); // getting the blocks for the category
+  } else {
+    var blockList = [...category.blocks];
+  }
+
+  var navBar = document.getElementById('navBar');
+  navBar.setAttribute('curSelected', category.styleName);
+  var blockListElem = navBar.firstChild;  
+  blockListElem.innerHTML = '';
+  var returnButtonItem = document.createElement('li');
+  returnButtonItem.textContent = 'return to ' + category.styleName;
+  returnButtonItem.setAttribute('class', 'categoryButton');
+  returnButtonItem.addEventListener('click', () => {
+    navBar.replaceChild(getNavList(), navBar.childNodes[0]);
+  });
+
+  blockListElem.appendChild(createButton(returnButtonItem));
+
+
+  blockList.filter((item) => item.tagName.toUpperCase() === 'BLOCK')
+    .map((block) => {
+      var blockItem = document.createElement('li');
+      blockItem.setAttribute('class', 'categoryButton');
+      var blockButton = document.createElement('span');   
+      blockButton.setAttribute('role', 'button');
+      /** block type as label vs. aria label (kinda bad sometimes) as label **/
+      // blockButton.textContent = block.getAttribute('type');
+      var info = getBlockInfo(block);
+      blockButton.textContent = info[0];
+      blockButton.setAttribute('aria-label', info[0]);
+      blockButton.setAttribute('aria-describedby', info[2]);
+
+      var blockDescription = document.createElement("div");
+      blockDescription.setAttribute("id", info[2]);
+      blockDescription.style.visibility = "hidden";
+      blockDescription.innerText = info[1];
+      document.body.appendChild(blockDescription);
+  
+      blockItem.appendChild(blockButton);
+      blockItem.addEventListener('click', e => addBlockToWorkspace(block));
+      blockListElem.appendChild(blockItem); 
+    })
+}
+
+// block DOM object as input
+// returns block arialabel, ariadescription, and id
+function getBlockInfo(blockDOM) {
+  Blockly.Events.disable();
+  var tempBlock = Blockly.Xml.domToBlock(blockDOM, workspace);
+  tempBlock.render();
+  var ariaLabel = tempBlock.makeAriaLabel();
+  var id = tempBlock.type + "-descrip";
+  var ariaDescription = typeof(tempBlock.tooltip) === "function" ? 
+    tempBlock.tooltip : tempBlock.tooltip;
+  var varList = tempBlock.getVarModels(); //TODO: sometime this is undefined? for (call do_something w/ return) blocks
+
+  // TODO: document.defaultView is incompatible with Microsoft browsers before IE9
+  // TODO: still get variable menu disappearing issue
+  // ---> check that variable uses are only on tempBlock
+  if (varList) {
+    varList.filter(variable => Blockly.VariableMap.prototype
+      .getVariableUsesById.call(document.defaultView, variable.getId()).length === 1)
+      .forEach(item => {workspace.getVariableMap().deleteVariable(item)});
+  }
+  tempBlock.dispose();
+  Blockly.Events.enable();
+  return [ariaLabel, ariaDescription, id];
+}
+
+function domToBlockData(elem) {
+  Blockly.Events.disable();  
+  try {
+    var block = workspace.newBlock(elem.getAttribute('type'));
+  } catch {
+    console.log('catch2', elem);
+  }
+  Blockly.Events.enable();
+  return block;
+}
+
+var dx = 0;
+var dy = 0;
+
+// block DOM object as input
+function addBlockToWorkspace(blockDOM, do_update=true) {
+  console.log(blockDOM)
+  // var block = workspace.newBlock(blockType)
+  var block = Blockly.Xml.domToBlock(blockDOM, workspace);
+  block.moveBy(dx, dy);
+  block.initSvg();
+  workspace.render();
+  if (dy >= document.getElementById('blocklyDiv').offsetHeight - 50) {
+    dy = 0;
+    dx += 100;
+  } else {
+    dy += (block.getHeightWidth().height + 10);
+  }
+  if (do_update) {
+    updateFlyout();
+  }
+}
+
+function updateFlyout() {
+  var navBar = document.getElementById('navBar');
+  var curCategory = workspace.getToolbox().tree_.getChildren()
+    .filter(child => child.styleName === navBar.getAttribute('curSelected'))[0];
+  popFlyout(curCategory);
+}
+
+function updateFontSize(value) {
+  workspace.linearization.setFontSize(value);
+}
+
+function appendChildren(element, children) {
+  for (var child of children) {
+    element.appendChild(child);
+  }
+}
+
+function handleSpeakPress() {
+  // only ever have one speak block on the workspace
+  var speakBlock = workspace.getBlocksByType("speak")[0];
+  // get the first child block within the speak block (this is where we being the message)
+  var firstChildBlock = speakBlock.inputList[1].connection.targetConnection.sourceBlock_;
+
+
+  var msg = new SpeechSynthesisUtterance()
+}
+
+</script>
+
+<style>
+html, body {
+  height: 100%;
+}
+body {
+  background-color: #fff;
+  font-family: sans-serif;
+  overflow: hidden;
+}
+h1 {
+  font-weight: normal;
+  font-size: 140%;
+}
+#blocklyDiv {
+  float: right;
+  height: 95%;
+  width: 70%;
+}
+#importExport {
+  font-family: monospace;
+}
+#mainNavList {
+  overflow: auto;
+  /*max-height: 180px;*/
+  /*min-height: 180px;*/
+  margin-left: 2px;
+  padding-left: 0px;
+}
+#mainNavList * {
+  margin-bottom: 6px;
+}
+.ioLabel>.blocklyFlyoutLabelText {
+  font-style: italic;
+}
+
+#navBar {
+  float: right;
+  position: fixed;
+  right: 5px;
+  max-width: 20%;
+}
+#blockList {
+  position: relative;
+  margin-left: -35px;
+  float: left;
+  list-style-type: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  height: auto;
+}
+.blockItem {
+  margin: 0 0 9px 0;
+}
+.categoryButton {
+  display:block; 
+  padding: 8px 16px; 
+  background-color: #cdd4cf;
+  margin: 3px 0px;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+</style>
+</head>
+<body onload="start()">
+
+  <div id="blocklyDiv"></div>
+
+  <h1>Blockly Playground</h1>
+
+  <xml id="toolbox-categories" style="display: none">
+    <category name="Add blocks" categorystyle="Text blocks">
+      <block type="rhyme_little_lamb"></block>
+      <block type="rhyme_mary_had_a"></block>
+      <block type="rhyme_whose_fleece"></block>
+      <block type="rhyme_say"></block>
+      <block type="controls_if"></block>
+      <block type="controls_repeat_ext">
+        <value name="TIMES">
+          <shadow type="math_number">
+            <field name="NUM">2</field>
+          </shadow>
+        </value>
+      </block>
+      <block type="variables_get">
+        <field name="VAR">verse</field>
+      </block>
+      <block type="logic_compare"></block>
+      <block type="math_number"></block>
+    </category>
+  </xml>
+
+  <block id="start_block" type="speak" deletable="false" class="start_blocks"></block>
+  <block type="variables_set" id="start_verse_Set" deletable="false" editable="false" class="start_blocks">
+    <field name="VAR" variabletype="">verse</field>
+    <value name="VALUE">
+      <block type="math_number" deletable="false">
+        <field name="NUM">1</field>
+      </block>
+    </value>
+  </block>
+
+
+  <!-- Mac students added this code -->
+  <span aria-label="Buffer from linearization controls to web controls"></span> 
+  <label for="Font size">Font size</label>
+  <input type="range" role="slider" 
+    min="8"
+    max="36"
+    value="14"
+    step="2"
+    aria-valuemin="8"
+    aria-valuemax="36"
+    aria-valuenow="14"
+    oninput="updateFontSize(value)">
+  <button style="margin-left: 10px" role="button" onclick="handleSpeakPress()" onKeyDown="handleSpeakPress()">SPEAK TEXT</button>
+  <p id='parentNav'></p>
+  <ul id='mainNavList'><ul>
+  <!-- Mac students added this code -->
+</body>
+</html>

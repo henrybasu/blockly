@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -401,127 +401,11 @@ function updateFontSize(value) {
   workspace.linearization.setFontSize(value);
 }
 
-// function toXml() {
-//   var output = document.getElementById('importExport');
-//   var xml = Blockly.Xml.workspaceToDom(workspace);
-//   output.value = Blockly.Xml.domToPrettyText(xml);
-//   output.focus();
-//   output.select();
-//   taChange();
-// }
-
-// function fromXml() {
-//   var input = document.getElementById('importExport');
-//   var xml = Blockly.Xml.textToDom(input.value);
-//   Blockly.Xml.domToWorkspace(xml, workspace);
-//   taChange();
-// }
-
-// function toCode(lang) {
-//   var output = document.getElementById('importExport');
-//   output.value = Blockly[lang].workspaceToCode(workspace);
-//   taChange();
-// }
-
-// Disable the "Import from XML" button if the XML is invalid.
-// Preserve text between page reloads.
-// function taChange() {
-//   var textarea = document.getElementById('importExport');
-//   if (sessionStorage) {
-//     sessionStorage.setItem('textarea', textarea.value);
-//   }
-//   var valid = true;
-//   try {
-//     Blockly.Xml.textToDom(textarea.value);
-//   } catch (e) {
-//     valid = false;
-//   }
-//   document.getElementById('import').disabled = !valid;
-// }
-
-// function logEvents(state) {
-//   var checkbox = document.getElementById('logCheck');
-//   checkbox.checked = state;
-//   if (sessionStorage) {
-//     sessionStorage.setItem('logEvents', Number(state));
-//   }
-//   if (state) {
-//     workspace.addChangeListener(logger);
-//   } else {
-//     workspace.removeChangeListener(logger);
-//   }
-// }
-
-// function logger(e) {
-//   console.log(e);
-// }
-
 function appendChildren(element, children) {
   for (var child of children) {
     element.appendChild(child);
   }
 }
-
-// function airstrike(n) {
-//   var prototypes = [];
-//   var toolbox = getToolboxElement();
-//   var blocks = toolbox.getElementsByTagName('block');
-//   for (var i = 0, block; block = blocks[i]; i++) {
-//     prototypes.push(block.getAttribute('type'));
-//   }
-//   for (var i = 0; i < n; i++) {
-//     var prototype = prototypes[Math.floor(Math.random() * prototypes.length)];
-//     var block = workspace.newBlock(prototype);
-//     block.initSvg();
-//     block.getSvgRoot().setAttribute('transform', 'translate(' +
-//         Math.round(Math.random() * 450 + 40) + ', ' +
-//         Math.round(Math.random() * 600 + 40) + ')');
-//     block.render();
-//   }
-// }
-
-// function spaghetti(n) {
-//   var xml = spaghettiXml;
-//   for(var i = 0; i < n; i++) {
-//     xml = xml.replace(/(<(statement|next)( name="DO0")?>)<\//g,
-//         '$1' + spaghettiXml + '</');
-//   }
-//   xml = '<xml xmlns="http://www.w3.org/1999/xhtml">' + xml + '</xml>';
-//   var dom = Blockly.Xml.textToDom(xml);
-//   console.time('Spaghetti domToWorkspace');
-//   Blockly.Xml.domToWorkspace(dom, workspace);
-//   console.timeEnd('Spaghetti domToWorkspace');
-// }
-// var spaghettiXml = [
-//   '  <block type="controls_if">',
-//   '    <value name="IF0">',
-//   '      <block type="logic_compare">',
-//   '        <field name="OP">EQ</field>',
-//   '        <value name="A">',
-//   '          <block type="math_arithmetic">',
-//   '            <field name="OP">MULTIPLY</field>',
-//   '            <value name="A">',
-//   '              <block type="math_number">',
-//   '                <field name="NUM">6</field>',
-//   '              </block>',
-//   '            </value>',
-//   '            <value name="B">',
-//   '              <block type="math_number">',
-//   '                <field name="NUM">7</field>',
-//   '              </block>',
-//   '            </value>',
-//   '          </block>',
-//   '        </value>',
-//   '        <value name="B">',
-//   '          <block type="math_number">',
-//   '            <field name="NUM">42</field>',
-//   '          </block>',
-//   '        </value>',
-//   '      </block>',
-//   '    </value>',
-//   '    <statement name="DO0"></statement>',
-//   '    <next></next>',
-//   '  </block>'].join('\n');
 
 </script>
 
@@ -594,64 +478,6 @@ h1 {
   <div id="blocklyDiv"></div>
 
   <h1>Blockly Playground</h1>
-
-<!--   <p><a href="javascript:void(workspace.setVisible(true))">Show</a>
-   <a href="javascript:void(workspace.setVisible(false))">Hide</a></p> -->
-
-  <!-- <form id="options">
-    <select name="dir" onchange="document.forms.options.submit()">
-      <option value="ltr">LTR</option>
-      <option value="rtl">RTL</option>
-    </select>
-    <select name="toolbox" onchange="document.forms.options.submit()">
-      <option value="categories">Categories (untyped variables)</option>
-      <option value="categories-typed-variables">Categories (typed variables)</option>
-      <option value="simple">Simple</option>
-      <option value="test-blocks">Test Blocks</option>
-    </select>
-    <select name="side" onchange="document.forms.options.submit()">
-      <option value="start">Start</option>
-      <option value="end">End</option>
-      <option value="top">Top</option>
-      <option value="bottom">Bottom</option>
-    </select>
-  </form>
-  <select id="themeChanger" name="theme" onchange="changeTheme()">
-    <option value="classic">Classic</option>
-    <option value="modern">Modern</option>
-    <option value="high_contrast">High Contrast</option>
-  </select>
-  <p>
-    <input type="button" value="Export to XML" onclick="toXml()">
-    &nbsp;
-    <input type="button" value="Import from XML" onclick="fromXml()" id="import">
-    <br>
-    <input type="button" value="To JavaScript" onclick="toCode('JavaScript')">
-    &nbsp;
-    <input type="button" value="To Python" onclick="toCode('Python')">
-    &nbsp;
-    <input type="button" value="To PHP" onclick="toCode('PHP')">
-    &nbsp;
-    <input type="button" value="To Lua" onclick="toCode('Lua')">
-    &nbsp;
-    <input type="button" value="To Dart" onclick="toCode('Dart')">
-    <br>
-    <textarea id="importExport" style="width: 26%; height: 12em"
-      onchange="taChange();" onkeyup="taChange()"></textarea>
-  </p>
-
-  <p>
-    Stress test: &nbsp;
-    <input type="button" value="Airstrike!" onclick="airstrike(100)">
-    <input type="button" value="Spaghetti!" onclick="spaghetti(8)">
-  </p>
-  <p>
-    Log events: &nbsp;
-    <input type="checkbox" onclick="logEvents(this.checked)" id="logCheck">
-  </p>
- -->
-  <!-- The next three blocks of XML are sample toolboxes for testing basic
-  configurations.  For more information on building toolboxes, see https://developers.google.com/blockly/guides/configure/web/toolbox -->
 
   <!-- toolbox-simple is an always-open flyout with no category menu.
   Always-open flyouts are a good idea if you have a small number of blocks. -->
