@@ -176,7 +176,7 @@ function start() {
 
   document.getElementsByClassName('blocklyToolboxDiv')[0].style.display = 'none';
 
-  var speak_block = document.getElementById("start_block");
+  var speak_block = document.getElementById("speak_block");
   var verse_set_block = document.getElementById("start_verse_Set");
   addBlockToWorkspace(speak_block, false);
   addBlockToWorkspace(verse_set_block, false);
@@ -412,12 +412,13 @@ function appendChildren(element, children) {
 
 function handleSpeakPress() {
   // only ever have one speak block on the workspace
-  var speakBlock = workspace.getBlocksByType("speak")[0];
-  // get the first child block within the speak block (this is where we being the message)
-  var firstChildBlock = speakBlock.inputList[1].connection.targetConnection.sourceBlock_;
-
-
-  var msg = new SpeechSynthesisUtterance()
+  var speak_block = workspace.getBlockById("speak_block");
+  console.log(speak_block);
+  // try {
+    eval(Blockly.JavaScript.statementToCode(speak_block, 'NAME'));
+  // } catch(e) {
+    // alert(e);
+  // }
 }
 
 </script>
@@ -514,7 +515,13 @@ h1 {
     </category>
   </xml>
 
-  <block id="start_block" type="speak" deletable="false" class="start_blocks"></block>
+  <block id="speak_block" type="speak" deletable="false" class="start_blocks"></block>
+  <block type="rhyme_say"></block>
+  <block type="rhyme_say"></block>
+  <block type="rhyme_say"></block>
+  <block type="rhyme_little_lamb"></block>
+  <block type="rhyme_little_lamb"></block>
+  <block type="rhyme_mary_had_a"></block>
   <block type="variables_set" id="start_verse_Set" deletable="false" editable="false" class="start_blocks">
     <field name="VAR" variabletype="">verse</field>
     <value name="VALUE">

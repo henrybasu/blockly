@@ -9,8 +9,8 @@ Blockly.Blocks['speak'] = {
 	 */
   init: function() {
     this.appendDummyInput()
-        .appendField("Speak");
-    this.appendStatementInput("NAME")
+        .appendField('Speak');
+    this.appendStatementInput('INNER')
         .setCheck(null);
     this.setColour(230);
  	this.setTooltip("");
