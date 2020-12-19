@@ -5,7 +5,7 @@
 <title>Blockly Playground</title>
 <script src="../blockly_uncompressed.js"></script>
 <script type="application/javascript">
-    <!--
+    <!-- 
     let scripts = [
         "../generators/javascript.js",
         "../generators/javascript/logic.js",
@@ -89,6 +89,14 @@ var workspace = null;
 
 function start() {
   setBackgroundColour();
+
+  var supportMsg = document.getElementById('msg');
+
+ if ('speechSynthesis' in window) {
+	supportMsg.innerHTML = 'Your browser supports speech synthesis.';
+  } else {
+	supportMsg.innerHTML = 'Your browser does not support speech synthesis.';
+  }
 
   // Parse the URL arguments.
   var match = location.search.match(/dir=([^&]+)/);
@@ -331,6 +339,7 @@ function popFlyout(category) {
   
       blockItem.appendChild(blockButton);
       blockItem.addEventListener('click', e => addBlockToWorkspace(block));
+
       blockListElem.appendChild(blockItem); 
     })
 }
@@ -414,6 +423,11 @@ function handleSpeakPress() {
   // only ever have one speak block on the workspace
   var speak_block = workspace.getBlockById("speak_block");
   console.log(speak_block);
+
+  var msg = new SpeechSynthesisUtterance();
+  msg.text = speak_block;
+  window.speechSynthesis.speak(msg);
+
   // try {
     eval(Blockly.JavaScript.statementToCode(speak_block, 'NAME'));
   // } catch(e) {
@@ -492,6 +506,8 @@ h1 {
   <div id="blocklyDiv"></div>
 
   <h1>Blockly Playground</h1>
+
+  <p id="msg"></p>
 
   <xml id="toolbox-categories" style="display: none">
     <category name="Add blocks" categorystyle="Text blocks">
